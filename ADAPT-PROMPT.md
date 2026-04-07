@@ -59,24 +59,43 @@ After I confirm, apply the machote structure following these strict safety rules
 
 ### Merge behavior:
 - If `.claude/settings.json` exists: **merge** the hooks from the template (PreToolUse + SessionStart) with existing hooks — don't overwrite
-- If `CLAUDE.md` exists: **append** a section referencing the machote structure and skills — don't replace the existing content
+- If `CLAUDE.md` exists: see Step 5 below (full integration, not just appending)
 - If `.gitignore` exists: **append** missing entries from the template — don't replace
 
-## Step 5 — Customize for this project
+## Step 5 — Integrate CLAUDE.md (CRITICAL)
+
+This is not a simple append — the goal is to produce the **best possible CLAUDE.md** for this project by integrating the existing content with the machote standard.
+
+If CLAUDE.md already exists:
+1. **Read the existing CLAUDE.md thoroughly** — understand what project-specific information it contains (stack, structure, conventions, known issues, debugging tips, etc.)
+2. **Read the machote's CLAUDE.md** as the target structure reference
+3. **Write a new integrated CLAUDE.md** that:
+   - Keeps ALL project-specific information from the original (stack, structure, conventions, business rules, known issues, etc.)
+   - Reorganizes it into the machote's clean structure (sections: Project Structure, Rules, Skills, Knowledge Management, Plans, Hooks, MCPs)
+   - Adds the complete skills table from the machote (with bilingual triggers)
+   - Adds references to the new rules, knowledge base, plans directory, and setup files
+   - Removes any redundancy or disorganization from the original
+   - Results in a single, cohesive document — not "old content + new content glued together"
+4. **Before overwriting**, show me a diff or summary of what changed and wait for confirmation
+
+If CLAUDE.md does not exist:
+- Create it from the machote template and customize it for this project's stack, structure, and context
+
+## Step 6 — Customize for this project
 
 After copying the structure:
 1. Update `.claude/context/reminders.md` with this project's actual structure, stack, and key information
-2. Update `CLAUDE.md` (or append to existing) with the project's specific skills table and structure
-3. If the project has business rules, create `.claude/rules/negocio.md` with the project's specific invariants
-4. If the project uses a specific language setting, update `.claude/rules/idioma.md` (`idioma-principal: en` or `es`)
+2. If the project has business rules, create `.claude/rules/negocio.md` with the project's specific invariants
+3. If the project uses a specific language setting, update `.claude/rules/idioma.md` (`idioma-principal: en` or `es`)
+4. If the project already had rules, agents, or context files, integrate their content into the new structure (don't lose any project-specific instructions)
 
-## Step 6 — Clean up
+## Step 7 — Clean up
 
 ```bash
 rm -rf /tmp/machote-template
 ```
 
-## Step 7 — Summary
+## Step 8 — Summary
 
 Show me:
 1. What was created (list of new files/directories)
