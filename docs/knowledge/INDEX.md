@@ -1,6 +1,6 @@
 # Knowledge Base Index / Índice de Conocimiento
 
-> Last updated / Última actualización: [UPDATE THIS DATE]
+> Last updated / Última actualización: 2026-04-25
 > Query: `/consultar-conocimiento [topic]` or `/query-knowledge [topic]`
 > The researcher agent keeps this index updated.
 
@@ -20,12 +20,9 @@
 
 ## Documents / Documentos
 
-<!-- Add documents here as you research each topic -->
-<!-- Format: | ID | `category/filename.md` | Title | Date | Brief description | -->
-
 | ID | Path | Title | Date | Description |
 |----|------|-------|------|-------------|
-| — | — | No documents yet | — | Use the researcher agent to start building your knowledge base |
+| LA-001 | `methodology/lecciones-aprendidas-skills.md` | Lecciones aprendidas — mejoras generales para skills jurídicas | 2026-04-25 | Documento vivo. Se precarga en toda skill jurídica. Captura patrones de error generales y sugerencias acumuladas; nunca contiene datos de casos. |
 
 ---
 

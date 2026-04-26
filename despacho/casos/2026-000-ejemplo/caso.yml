@@ -1,0 +1,35 @@
+id: 2026-000-ejemplo
+cliente:
+  nombre: Cliente De Ejemplo
+  tipo: persona-fisica
+
+asunto:
+  materia: civil
+  descripcion_corta: |
+    Caso de ejemplo (no real) para mostrar la estructura completa de una
+    carpeta de caso. Sirve como referencia visual para nuevos casos.
+
+plantilla_origen:
+  archivo: ejemplo-plantilla-v1.docx
+  fecha_uso: 2026-04-25
+
+fechas:
+  apertura: 2026-04-25
+  ultima_modificacion: 2026-04-25
+  cierre: null
+
+borradores:
+  - version: 1
+    archivo: v1-2026-04-25-1430.docx
+    fecha: 2026-04-25T14:30:00
+    resumen: Adaptación inicial a partir de la plantilla
+  - version: 2
+    archivo: v2-2026-04-25-1530.docx
+    fecha: 2026-04-25T15:30:00
+    resumen: Sustitución de cláusula 5 y actualización de fechas
+
+estado: en-edicion
+
+notas: |
+  Este es un caso ficticio creado para documentar la estructura.
+  No tiene relación con personas reales.

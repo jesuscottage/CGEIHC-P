@@ -34,3 +34,28 @@ out/
 
 # Claude project memory (auto-generated, user-specific)
 .claude/projects/
+
+# Despacho — datos de clientes (privacidad obligatoria)
+# Sólo se versionan: README.md, _templates/, plantillas/, los INDICE.md
+# y el caso de ejemplo. Todo lo que contenga PII real queda fuera de git.
+# Patrones con /** (no /) para que las negaciones whitelist funcionen.
+despacho/casos/**
+despacho/entregables/**
+despacho/archivo-historico/**
+despacho/_trabajo/**
+
+# Whitelist: marcadores .gitkeep e índices
+!despacho/casos/.gitkeep
+!despacho/entregables/.gitkeep
+!despacho/entregables/INDICE.md
+!despacho/archivo-historico/.gitkeep
+!despacho/archivo-historico/INDICE.md
+!despacho/_trabajo/.gitkeep
+
+# Whitelist: caso de ejemplo (referencia visual, sin datos reales)
+!despacho/casos/2026-000-ejemplo/
+!despacho/casos/2026-000-ejemplo/**
+
+# Instaladores binarios descargados (recuperables, no versionar)
+setup/instaladores/*.exe
+setup/instaladores/*.msi

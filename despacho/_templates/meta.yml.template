@@ -1,0 +1,43 @@
+# meta.yml — metadatos de plantilla
+#
+# Este archivo va junto a cada plantilla en despacho/plantillas/, con el
+# mismo nombre base que el documento:
+#   plantillas/amparo-indirecto-v1.docx
+#   plantillas/amparo-indirecto-v1.meta.yml
+#
+# Sirve para que la skill pueda buscar plantillas por tags y entender qué
+# variables esperan ser sustituidas.
+
+titulo: Título descriptivo de la plantilla
+autor: Juan Pablo                   # quién la redactó originalmente
+
+fecha_creacion: 2018-03-12          # fecha del documento original
+fecha_revision: 2026-04-25          # última revisión/limpieza de la plantilla
+
+# Variables esperadas en el cuerpo del documento.
+# Si la plantilla usa marcadores como {{NOMBRE_QUEJOSO}}, listarlos aquí.
+# Si usa nombres de un caso anterior que deben ser sustituidos, también.
+variables_detectadas:
+  - NOMBRE_QUEJOSO
+  - AUTORIDAD_RESPONSABLE
+  - ACTO_RECLAMADO
+  - FECHA_NOTIFICACION
+
+# Tags libres — sin imponer taxonomía estricta. Útiles para que la skill
+# encuentre plantillas relevantes con búsqueda por keywords.
+tags:
+  - amparo
+  - indirecto
+  - garantias-individuales
+
+# Información sobre el uso histórico (opcional pero útil)
+uso_historico:
+  casos_exitosos: 14                # cuántos casos se han resuelto bien con esta plantilla
+  ultimo_uso: 2025-11-30
+  notas: |
+    Plantilla validada en juzgados de distrito de la Ciudad de México.
+    Para casos foráneos, revisar referencias a tribunales locales.
+
+# Si la plantilla aún tiene datos de cliente embebidos, marcar aquí.
+# Si está limpia (sólo marcadores), poner false.
+contiene_pii: false
