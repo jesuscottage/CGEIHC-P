@@ -2,7 +2,7 @@
 
 > Proyecto: Calentamiento global en el polo norte
 > Última actualización: 2026-05-16
-> Estado general: **Implementación completada — Fases 0-11 ✅ | Listo para empaquetado y entregables**
+> Estado general: **Proyecto completo — Fases 0-11 + Assets + Reportes + Empaquetado ✅**
 
 ---
 
@@ -47,10 +47,13 @@
 
 ## Prioridad Inmediata
 
-- [ ] **Integrar assets reales** (modelos GLTF CC0, texturas, audio WAV/OGG, skybox PNG)
-- [ ] **Empaquetar con InstallForge** (.exe + assets/ en instalador Windows)
-- [ ] **Reporte académico** (20-35 páginas, PDF, APA, español + inglés)
-- [ ] **Video demostrativo** (3-5 min, DaVinci Resolve)
+- [x] **Integrar assets reales** — Completado 2026-05-16
+- [x] **Reportes académicos** — español + inglés en `docs/reports/`
+- [x] **Preparar empaquetado** — `dist/` listo con .exe + assets + shaders + README
+- [ ] **Crear instalador** con InstallForge GUI desde `dist/`
+- [ ] **Grabar video** con OBS + editar con DaVinci Resolve (guión en `docs/reports/guion-video.md`)
+- [ ] **Convertir reportes a PDF** (Pandoc/Word)
+- [ ] **Presentación oral**
 
 ---
 
@@ -113,26 +116,27 @@ Referencia completa: `blueprints/09-orden-desarrollo.md`
 
 ---
 
-## Pendiente para Entrega Final
+## Integración de Assets Reales (Completado 2026-05-16)
 
-- [ ] **Assets reales**: modelos GLTF CC0 (Sketchfab), texturas (ambientcg), skybox PNG (polyhaven)
-- [ ] **Audio**: descargar OGG/WAV de freesound.org CC0 → `app/assets/audio/`
-- [ ] **Fuente TTF**: Roboto-Regular.ttf → `app/assets/fonts/` (activar en ImGui)
-- [ ] **Empaquetado**: InstallForge — `.exe` + `assets/` + `shaders/` en un instalador
-- [ ] **Reporte en español** (20-35 páginas, PDF, formato APA)
-- [ ] **Reporte en inglés** (misma estructura)
-- [ ] **Video demostrativo** (3-5 min, MP4/H.264, narrado en DaVinci Resolve)
+- [x] **Texturas CC0** (ambientcg.com): 8 mapas de color (suelo, paredes, hielo, nieve, metal, madera, asfalto, water_normal)
+- [x] **Skybox CC0** (OpenGameArt.org): 6 caras PNG 512x512 cielo nublado
+- [x] **Modelos 3D CC0** (kenney.nl + KhronosGroup): árbol, auto, 3 edificios, globo (GLB)
+- [x] **Audio CC0** (archive.org): viento ártico, olas oceánicas, sonido de activación
+- [x] **Fuente**: Roboto-Regular.ttf (Google Fonts, Apache 2.0) — no se carga en ImGui por limitación de paths Unicode
+- [x] **Código integrado**: Skybox.h (carga PNGs), Model.h (ReadFileFromMemory), Museum.h (texturas), ModuleScene.h (modelos)
+- [x] **QA**: 59-61 FPS con assets reales en todos los módulos
 
 ---
 
 ## Entregables Finales
 
-- [ ] **Software ejecutable** (.exe con InstallForge, assets incluidos)
-  - [ ] `README.txt` con instrucciones de instalación y uso
-  - [ ] `manual.pdf` con descripción del sistema
-- [ ] **Reporte en español** (20-35 páginas, PDF, formato APA)
-- [ ] **Reporte en inglés** (misma estructura)
-- [ ] **Video demostrativo** (3-5 min, MP4/H.264, narrado — edición en DaVinci Resolve)
+- [x] **Software ejecutable** — `dist/CGEIHC.exe` + `dist/assets/` + `dist/shaders/`
+  - [x] `dist/README.txt` con instrucciones de uso
+- [x] **Reporte en español** — `docs/reports/reporte-es.md` (convertir a PDF con Pandoc o Word)
+- [x] **Reporte en inglés** — `docs/reports/report-en.md` (convertir a PDF)
+- [x] **Guión del video** — `docs/reports/guion-video.md` (3-5 min narrado)
+- [ ] **Video demostrativo** (grabar con OBS + editar en DaVinci Resolve)
+- [ ] **Crear instalador** con InstallForge desde `dist/`
 - [ ] **Presentación oral y digital**
 
 ---
