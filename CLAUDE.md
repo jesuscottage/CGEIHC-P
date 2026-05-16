@@ -13,7 +13,6 @@ Machote/
 ├── .gitignore                    # Ignored files
 ├── .mcp.json.example             # MCP catalog (not active by default)
 ├── .claude/
-│   ├── settings.json.example     # Project hooks (not active by default)
 │   ├── rules/                    # Shared rules
 │   │   ├── organizacion.md       # MANDATORY: directory structure
 │   │   ├── idioma.md             # Language + Spanish accents
@@ -33,7 +32,6 @@ Machote/
 │   │   └── INDEX.md              # Knowledge base index (mandatory)
 │   └── plans/                    # Actionable plans with checkboxes
 └── setup/
-    ├── setup-hooks.md            # User-level hook instructions
     └── mcp-catalog.md            # Exhaustive MCP catalog (18+)
 ```
 
@@ -146,12 +144,6 @@ Machote/
 - **Actionable plans**: `docs/plans/` with checkboxes
 - **Master plans**: `plan-maestro-*.md` with sub-plan references
 - **Track progress**: update checkboxes as tasks complete
-
-## Hooks
-
-- **Project** (`.claude/settings.json.example`): destructive command blocking + context injection. Not active by default. Copy to `.claude/settings.json` to enable.
-- **User** (`~/.claude/settings.json`): notification sounds + effort level. Also optional.
-- See `setup/setup-hooks.md` for user-level hook configuration
 
 ## MCPs
 

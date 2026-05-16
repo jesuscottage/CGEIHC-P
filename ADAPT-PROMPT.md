@@ -45,7 +45,7 @@ After I confirm, apply the machote structure following these strict safety rules
 - **Create** `docs/knowledge/INDEX.md` from the template
 - **Create** `docs/plans/` directory
 - **Create** `scripts/` and copy `fix-spanish-ortho.sh` from the template
-- **Create** `setup/` and copy `setup-hooks.md` and `mcp-catalog.md` from the template
+- **Create** `setup/` and copy `mcp-catalog.md` from the template
 - **Create** `.mcp.json.example` from the template
 - **Create** `.gitignore` entries — MERGE with existing .gitignore (don't replace)
 
@@ -58,7 +58,6 @@ After I confirm, apply the machote structure following these strict safety rules
 - **Never move** existing files — if skills exist elsewhere, COPY them into `.claude/skills/` and tell me where the originals are so I can decide whether to remove them
 
 ### Merge behavior:
-- **Project Hooks are optional**: Copy the template's `.claude/settings.json.example` into `.claude/`. DO NOT create or modify `.claude/settings.json` unless the user explicitly asks for it.
 - If `CLAUDE.md` exists: see Step 5 below (full integration, not just appending)
 - If `.gitignore` exists: **append** missing entries from the template — don't replace
 
@@ -71,7 +70,7 @@ If CLAUDE.md already exists:
 2. **Read the machote's CLAUDE.md** as the target structure reference
 3. **Write a new integrated CLAUDE.md** that:
    - Keeps ALL project-specific information from the original (stack, structure, conventions, business rules, known issues, etc.)
-   - Reorganizes it into the machote's clean structure (sections: Project Structure, Rules, Skills, Knowledge Management, Plans, Hooks, MCPs)
+   - Reorganizes it into the machote's clean structure (sections: Project Structure, Rules, Skills, Knowledge Management, Plans, MCPs)
    - Adds the complete skills table from the machote (with bilingual triggers)
    - Adds references to the new rules, knowledge base, plans directory, and setup files
    - Removes any redundancy or disorganization from the original
@@ -102,7 +101,7 @@ Show me:
 2. What was merged (.gitignore, CLAUDE.md)
 3. What was NOT touched (existing project files)
 4. Any skills or configs that existed outside `.claude/` that I should review for migration
-5. Recommended next steps (e.g., configure user hooks, activate MCPs)
+5. Recommended next steps (e.g., activate MCPs)
 
 ---
 

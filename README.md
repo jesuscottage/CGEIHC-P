@@ -9,7 +9,6 @@ in the most effective way possible.
 - **4 shared rules** (organization, language, security, quality)
 - **1 research agent** with knowledge base persistence
 - **1 semantic commit command** (bilingual)
-- **Protection hooks** (destructive command blocking + context auto-injection)
 - **Knowledge management** with mandatory indexes
 - **MCP catalog** (18+ recommended servers, not installed by default)
 
@@ -24,18 +23,7 @@ rm -rf .git
 git init
 ```
 
-### 2. Configure hooks (optional)
-
-**User-level hooks (one-time):**
-See `setup/setup-hooks.md` for configuring notification sounds and effort level in `~/.claude/settings.json`. 
-
-**Project-level hooks:**
-The machote includes `.claude/settings.json.example` with protective commands. If you want to use them in your project, copy it:
-```bash
-cp .claude/settings.json.example .claude/settings.json
-```
-
-### 3. Activate MCPs (optional)
+### 2. Activate MCPs (optional)
 
 ```bash
 cp .mcp.json.example .mcp.json
@@ -44,7 +32,7 @@ cp .mcp.json.example .mcp.json
 
 See `setup/mcp-catalog.md` for the complete catalog with descriptions.
 
-### 4. Customize
+### 3. Customize
 
 1. Edit `CLAUDE.md` with your project's info (name, stack, structure)
 2. Edit `.claude/context/reminders.md` with your specific context
@@ -52,9 +40,9 @@ See `setup/mcp-catalog.md` for the complete catalog with descriptions.
 4. Add business rules in `.claude/rules/negocio.md` (create new file)
 5. Populate `docs/knowledge/` with your research
 
-### 5. Open Claude Code
+### 4. Open Claude Code
 
-**Always open from the project root.** The rules and hooks only load from the root.
+**Always open from the project root.** The rules only load from the root.
 
 ---
 
@@ -76,7 +64,6 @@ The adaptation is **strictly additive** — it will NOT break your existing proj
 - **Never touches** your code, configs, package.json, Docker, CI/CD, APIs, or .env files
 - **Never moves** existing project files — if you already have skills outside `.claude/`, they get copied (not moved) until you confirm
 - **Never modifies** API connections, credentials, deploy configuration, or dependencies
-- Project hooks are provided as `.claude/settings.json.example` and are strictly optional
 - If `CLAUDE.md` already exists, Claude **appends** to it (doesn't replace)
 - If `.mcp.json` already exists, Claude **doesn't touch it** (only creates `.mcp.json.example` as reference)
 
@@ -108,7 +95,6 @@ To adapt this machote to your existing project:
 Safety guarantees:
 - Your code, APIs, .env, Docker, CI/CD are NOT touched
 - Only Claude organization folders are created
-- Hooks are optional (provided as .claude/settings.json.example)
 - If you already have skills elsewhere, they are copied (not moved)
 ```
 
@@ -168,7 +154,7 @@ This is automatic — you don't need to create it manually.
 | `docs/plans/` | Actionable plans with progress tracking |
 | `docs/reviews/` | Code reviews and consultations (created as needed) |
 | `scripts/` | Auxiliary scripts (orthography fix, etc.) |
-| `setup/` | Setup instructions (hooks, MCPs) |
+| `setup/` | Setup instructions (MCPs) |
 
 ---
 
