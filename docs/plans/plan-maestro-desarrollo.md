@@ -2,7 +2,7 @@
 
 > Proyecto: Calentamiento global en el polo norte — Museo virtual 3D
 > Última actualización: 2026-05-16
-> Revisado por: Gemini + ChatGPT (ver `docs/reviews/plan-implementacion-consulta/`)
+> Auditado por: Gemini + ChatGPT (ver `docs/reviews/auditoria-plan-desarrollo/`)
 > Estado: ACTIVO — guía principal de implementación
 
 ---
@@ -34,7 +34,26 @@ Estas reglas aplican a **todas** las fases sin excepción:
 5. **Tags FetchContent congelados** — nunca usar `HEAD`, `main` o `latest` en dependencias
 6. **Un modelo activo a la vez** — si el trigger se solapa, gana el módulo más cercano
 7. **Assets congelados desde Fase 4** — no cambiar modelos ni texturas después de integrarlos
-8. **1 unidad OpenGL = 1 metro**, eje Y = arriba, Y = 0 es el suelo
+8. **Convención de coordenadas global** (aplicar desde Fase 0, verificar en cada asset importado):
+   - `1 unidad OpenGL = 1 metro`
+   - Eje **Y = arriba** (Y-up), Y = 0 es el nivel del suelo
+   - **Forward = -Z** (la cámara mira hacia -Z por defecto)
+   - Todos los assets GLTF exportados con: escala 1.0, Y-up, metros, forward -Z
+   - Si Assimp importa un modelo con Z-up, añadir `aiProcess_MakeLeftHanded` o rotar en el model matrix
+9. **Estructura de render loop inmutable** — definir desde Fase 2 y no cambiar:
+   ```cpp
+   renderOpaque();      // suelo, plataformas, modelos 3D
+   renderSkybox();      // depth trick xyww
+   renderTransparent(); // agua, partículas, letreros (glDepthMask GL_FALSE durante esta etapa)
+   renderUI();          // ImGui — siempre al último
+   ```
+10. **Restaurar estado OpenGL al inicio de cada frame** — previene corrupción entre subsistemas:
+    ```cpp
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    ```
 
 ---
 
@@ -62,7 +81,7 @@ Este pipeline es el mecanismo central que permite a Claude verificar resultados 
 El sistema de screenshot debe implementarse en **Fase 1** y usarse en todas las fases posteriores.
 
 ```cpp
-// En main.cpp o Window.cpp — función de captura
+// En main.cpp — función de captura
 void saveScreenshot(const char* path, int width, int height) {
     std::vector<unsigned char> pixels(width * height * 3);
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
@@ -72,25 +91,91 @@ void saveScreenshot(const char* path, int width, int height) {
 ```
 
 **Modos de captura**:
-- **Tecla F12**: captura manual al presionar F12 durante ejecución
-- **Automático al frame N**: configurar `AUTO_SCREENSHOT_FRAME = 120` (2 s a 60 FPS)
+- **Tecla F12**: captura manual al presionar F12 durante ejecución interactiva
+- **Multi-screenshot automático** (implementar desde Fase 1): captura en 3 frames y cierra
   ```cpp
-  if (frameCount == AUTO_SCREENSHOT_FRAME) {
-      saveScreenshot("active/screenshot.png", SCREEN_W, SCREEN_H);
-      glfwSetWindowShouldClose(window, GLFW_TRUE);  // cierra automáticamente
+  // Frames de captura: 60 (≈1s), 300 (≈5s), 600 (≈10s)
+  const int CAPTURE_FRAMES[] = {60, 300, 600};
+  const char* CAPTURE_PATHS[] = {
+      "active/screenshot_f060.png",
+      "active/screenshot_f300.png",
+      "active/screenshot_f600.png"
+  };
+  constexpr int LAST_CAPTURE_FRAME = 600;  // cierre automático después de este frame
+
+  // En el loop:
+  for (int i = 0; i < 3; i++) {
+      if (frameCount == CAPTURE_FRAMES[i])
+          saveScreenshot(CAPTURE_PATHS[i], SCREEN_W, SCREEN_H);
   }
+  if (frameCount >= LAST_CAPTURE_FRAME)
+      glfwSetWindowShouldClose(window, GLFW_TRUE);
   ```
 
-**Uso para verificación autónoma**:
+**JSON de estado** — complementa los screenshots con datos numéricos que Claude puede leer sin depender solo del PNG:
+```cpp
+// Guardar junto con el último screenshot (frame 600)
+void saveStateJSON(const glm::vec3& camPos, const std::string& activeModule,
+                   float moduleT, float fps) {
+    std::ofstream f("active/state.json");
+    f << "{\n"
+      << "  \"camera\": [" << camPos.x << "," << camPos.y << "," << camPos.z << "],\n"
+      << "  \"activeModule\": \"" << activeModule << "\",\n"
+      << "  \"moduleT\": " << moduleT << ",\n"
+      << "  \"fps\": " << fps << "\n"
+      << "}\n";
+}
+```
+
+**Test Mode CLI** (G1 — crítico para verificar fases de interacción de forma autónoma):
+
+Claude no puede emitir eventos de teclado durante la ejecución. Para verificar módulos y animaciones sin intervención humana, la app acepta argumentos de línea de comando:
+
+```cpp
+// Parsear en main() antes del loop
+struct TestConfig {
+    bool enabled = false;
+    glm::vec3 cameraPos = {0, 1.7f, -3};
+    std::string testModule = "";  // ej. "M1_IZQ", "M2_DER", "M5"
+    int activateAtFrame = 60;     // frame en que se simula la pulsación de E
+};
+
+// Argumentos CLI:
+// --test-module M1_IZQ      → posiciona cámara frente a M1 izq, simula E al frame 60
+// --test-module M5          → posiciona cámara frente a M5, simula E
+// --cam 0 1.7 -3            → posición manual de cámara
+
+// Mapa de posiciones por módulo:
+const std::map<std::string, glm::vec3> MODULE_POSITIONS = {
+    {"M1_IZQ", {-12, 1.7f, 13}},
+    {"M2_IZQ", {-12, 1.7f, 28}},
+    {"M3_IZQ", {-12, 1.7f, 43}},
+    {"M1_DER", { 12, 1.7f, 13}},
+    {"M2_DER", { 12, 1.7f, 28}},
+    {"M3_DER", { 12, 1.7f, 43}},
+    {"M5",     {  0, 1.7f, 63}},
+};
+```
+
+**Uso en verificación autónoma**:
 ```bash
 # Build
 cmake --build build --config Debug --parallel
 
-# Ejecutar y capturar automáticamente (cierra solo al frame 120)
+# Verificar escena estática (Fases 1-4)
 ./build/Debug/CGEIHC.exe
+# → genera: active/screenshot_f060.png, active/screenshot_f300.png, active/screenshot_f600.png
 
-# Claude lee el resultado
-# Read: active/screenshot.png
+# Verificar módulo específico (Fases 5, 10)
+./build/Debug/CGEIHC.exe --test-module M1_IZQ
+# → posiciona cámara frente a M1 izq, simula E al frame 60
+# → screenshots muestran el iceberg en distintos estados de la animación
+
+# Claude lee todos los resultados:
+# Read: active/screenshot_f060.png
+# Read: active/screenshot_f300.png
+# Read: active/screenshot_f600.png
+# Read: active/state.json
 ```
 
 ### Verificaciones por tipo de problema
@@ -242,6 +327,24 @@ add_custom_command(TARGET CGEIHC POST_BUILD
         $<TARGET_FILE:assimp>
         $<TARGET_FILE_DIR:CGEIHC>
 )
+
+# Copiar assets/ junto al .exe para garantizar rutas relativas correctas
+# (en VS2022 el CWD puede NO ser la raíz del proyecto)
+add_custom_command(TARGET CGEIHC POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/assets
+        $<TARGET_FILE_DIR:CGEIHC>/assets
+)
+add_custom_command(TARGET CGEIHC POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:CGEIHC>/shaders
+)
+# Crear directorio active/ junto al .exe
+add_custom_command(TARGET CGEIHC POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        $<TARGET_FILE_DIR:CGEIHC>/active
+)
 ```
 
 #### 0.3 Descargar y colocar headers en `src/vendor/`
@@ -365,38 +468,45 @@ Responsabilidades:
 - `clampAABB(float minX, float maxX, float minZ, float maxZ)` — aplicar después de movimiento
 - Sensibilidad configurable: `MOUSE_SENSITIVITY = 0.1f`
 
-#### 1.5 Sistema de screenshot autónomo
+#### 1.5 Sistema de screenshot autónomo y Test Mode CLI
 
-En `src/core/Window.h/.cpp` o en `main.cpp`:
+Implementar el sistema completo descrito en el Pipeline de Verificación Visual (sección anterior).
+
+En `src/main.cpp`:
 
 ```cpp
-// Constantes de configuración
-constexpr bool  AUTO_SCREENSHOT_ENABLED = true;
-constexpr int   AUTO_SCREENSHOT_FRAME   = 120;  // frame 120 ≈ 2s a 60fps
-constexpr char  SCREENSHOT_PATH[]       = "active/screenshot.png";
-
 void saveScreenshot(const char* path, int width, int height) {
     std::vector<unsigned char> pixels(width * height * 3);
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
     stbi_flip_vertically_on_write(true);
     stbi_write_png(path, width, height, 3, pixels.data(), width * 3);
 }
+
+// Parsear argv para test mode
+TestConfig parseArgs(int argc, char** argv);
+
+// Frames de captura automática
+const int CAPTURE_FRAMES[] = {60, 300, 600};
 ```
 
-Uso en el loop:
+En el loop principal:
 ```cpp
-int frameCount = 0;
-while (!window.shouldClose()) {
-    // ... render ...
-    frameCount++;
-    if (AUTO_SCREENSHOT_ENABLED && frameCount == AUTO_SCREENSHOT_FRAME) {
-        saveScreenshot(SCREENSHOT_PATH, 1280, 720);
-        window.close();  // cierre automático para verificación autónoma
-    }
-    // F12 para captura manual
-    if (input.isKeyJustPressed(GLFW_KEY_F12))
-        saveScreenshot(SCREENSHOT_PATH, 1280, 720);
+// Multi-screenshot automático
+for (int i = 0; i < 3; i++) {
+    if (frameCount == CAPTURE_FRAMES[i])
+        saveScreenshot(CAPTURE_PATHS[i], 1280, 720);
 }
+// JSON de estado al último frame de captura
+if (frameCount == 600) saveStateJSON(camera.getPosition(), activeModuleName, moduleT, fps);
+// Watchdog: cierre automático tras 600 frames
+if (frameCount >= 600) glfwSetWindowShouldClose(window, GLFW_TRUE);
+// F12: captura manual sin cierre
+if (input.isKeyJustPressed(GLFW_KEY_F12))
+    saveScreenshot("active/screenshot_manual.png", 1280, 720);
+// Test mode: simular E en frame definido
+if (testConfig.enabled && frameCount == testConfig.activateAtFrame)
+    simulateModuleActivation(testConfig.testModule);
+```
 ```
 
 #### 1.6 `src/main.cpp` — AppState y loop principal
@@ -427,23 +537,24 @@ while (state != AppState::SALIR) {
 
 ### Verificación de la Fase 1
 
-**Método**: build → ejecutar → screenshot automático al frame 120 → leer `active/screenshot.png`
+**Método**: build → ejecutar → screenshots automáticos en frames 60/300/600 → leer `active/screenshot_f060.png` + `active/state.json`
 
-**Qué debe verse**:
+**Qué debe verse en `screenshot_f060.png`**:
 - Fondo de color sólido azul oscuro (`#0d1a2e` aproximado)
-- Sin artefactos, sin ventana negra
+- Sin artefactos, sin ventana negra, sin pantalla completamente blanca
 
-**Verificación adicional de cámara** (manual o con tecla especial):
-- WASD mueve la cámara
-- Mouse rota sin gimbal lock
-- Pitch se detiene a ±80°
+**Verificación del estado JSON** (`active/state.json`):
+- `"camera"`: coordenadas razonables (no `[0,0,0]` que indicaría posición sin inicializar)
+- `"fps"`: valor en rango [30, 300]
+- `"moduleT"`: 0.0 (ningún módulo activo aún)
 
 **Criterio de salida**:
 - [ ] Ventana abre correctamente a 1280×720
-- [ ] Screenshot guardado en `active/screenshot.png`
-- [ ] Cámara FPS responde a WASD + mouse
-- [ ] `getDeltaTime()` estable (verificar con `printf` al inicio del loop)
-- [ ] Debug callback de OpenGL activo (verificar que no imprime errores al arranque)
+- [ ] `active/screenshot_f060.png` muestra fondo azul oscuro sin artefactos
+- [ ] `active/state.json` contiene FPS en rango [30, 300] y cámara no en origen
+- [ ] `getDeltaTime()` clampeado: valor impreso en stdout ∈ [0.0001, 0.05]
+- [ ] Debug callback de OpenGL activo: ningún error GL impreso al arranque
+- [ ] La app cierra sola al frame 600 (watchdog activo)
 
 ---
 
@@ -491,7 +602,29 @@ Requiere:
 - `stbi_set_flip_vertically_on_load(flipVertically)` antes de cargar
 - `GL_RGBA` como formato interno (soporta PNG con alpha)
 - `GL_LINEAR_MIPMAP_LINEAR` + `glGenerateMipmap`
-- Log de error si `stbi_load` retorna null
+- **Fallback visual automático** (G9): si `stbi_load` retorna null, generar textura checkerboard magenta en CPU:
+  ```cpp
+  // Textura de fallback 8×8 — alternancia negro/magenta
+  GLuint createFallbackTexture() {
+      unsigned char data[8*8*4];
+      for (int y = 0; y < 8; y++)
+          for (int x = 0; x < 8; x++) {
+              bool checker = (x + y) % 2 == 0;
+              int i = (y*8+x)*4;
+              data[i]   = checker ? 255 : 0;   // R
+              data[i+1] = 0;                    // G
+              data[i+2] = checker ? 255 : 0;   // B
+              data[i+3] = 255;                  // A
+          }
+      GLuint tex;
+      glGenTextures(1, &tex);
+      glBindTexture(GL_TEXTURE_2D, tex);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 8, 8, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      return tex;
+  }
+  ```
+  Así Claude detecta inmediatamente (color magenta en el screenshot) qué texturas fallan de carga.
 
 #### 2.3 `src/graphics/Mesh.h/.cpp`
 
@@ -544,7 +677,43 @@ void main() {
 }
 ```
 
-#### 2.5 Cubo de prueba en `main.cpp`
+#### 2.5 ImGui — overlay de debug (G6)
+
+Inicializar Dear ImGui desde Fase 2 exclusivamente para un overlay de debug que muestre información numérica en pantalla. **No** implementar HUD final ni pantallas en esta fase — solo la ventana de debug.
+
+```cpp
+// Inicializar en Window::init() — después de gladLoadGLLoader
+IMGUI_CHECKVERSION();
+ImGui::CreateContext();
+ImGui_ImplGlfw_InitForOpenGL(window, true);
+ImGui_ImplOpenGL3_Init("#version 330");
+
+// Renderizar al final de cada frame (siempre el último)
+void renderDebugOverlay(float fps, const glm::vec3& camPos,
+                        const std::string& activeModule, float moduleT) {
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::SetNextWindowPos({10, 10});
+    ImGui::SetNextWindowBgAlpha(0.7f);
+    ImGui::Begin("DEBUG", nullptr, ImGuiWindowFlags_NoDecoration |
+                                    ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Text("FPS: %.1f", fps);
+    ImGui::Text("Cam: %.1f %.1f %.1f", camPos.x, camPos.y, camPos.z);
+    ImGui::Text("Module: %s (t=%.2f)", activeModule.c_str(), moduleT);
+    ImGui::End();
+
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    // Restaurar estado OpenGL tras ImGui
+    glEnable(GL_DEPTH_TEST);
+}
+```
+
+Este overlay aparece en todos los screenshots y permite a Claude leer FPS, posición de cámara y estado del módulo activo directamente del PNG sin depender solo del JSON.
+
+#### 2.6 Cubo de prueba en `main.cpp`
 
 Construir un cubo con vertices manuales (8 vértices, 36 índices) → cargarlo como `Mesh` → renderizarlo con una textura de prueba y matrices MVP.
 
@@ -558,16 +727,17 @@ Transformaciones de prueba:
 **Screenshot esperado**: cubo texturizado centrado en pantalla, girando lentamente, con perspectiva visible.
 
 **Checklist visual**:
-- [ ] El cubo tiene textura visible (no negro, no magenta)
-- [ ] Las caras distantes se ven más pequeñas (perspectiva correcta)
-- [ ] El cubo no está invertido (cara frontal visible)
+- [ ] El cubo tiene textura visible (no negro, no magenta checkerboard)
+- [ ] Las caras distantes se ven más pequeñas que las cercanas (perspectiva correcta)
+- [ ] El cubo no está invertido (cara frontal visible, no pasando a través de ella)
 - [ ] No hay z-fighting entre caras del cubo
+- [ ] Overlay de debug muestra FPS en rango [30, 300] y posición de cámara no en `(0,0,0)`
 
 **Debug de problemas comunes**:
-- **Negro**: textura no cargó → revisar ruta, log de stb_image
-- **Magenta**: convención de "textura faltante" — mismo problema
-- **Cubo aplanado/deformado**: aspecto ratio incorrecto en Projection → `width/height` como float
-- **Caras faltantes**: face culling activado sin normales correctas → `glDisable(GL_CULL_FACE)` temporalmente
+- **Negro**: textura no cargó → revisar ruta relativa desde el .exe (no desde la raíz del repo)
+- **Magenta checkerboard**: fallback activado → misma causa, pero ahora visible y distinguible
+- **Cubo aplanado/deformado**: aspecto ratio incorrecto en Projection → `(float)width/height` (no int/int)
+- **Caras faltantes**: face culling activado → `glDisable(GL_CULL_FACE)` temporalmente para diagnosticar
 
 ---
 
@@ -601,6 +771,25 @@ unsigned int flags = aiProcess_Triangulate
                    | aiProcess_FlipUVs             // UV convention OpenGL
                    | aiProcess_CalcTangentSpace;
 ```
+
+**Validación de escena Assimp** — verificar antes de procesar cualquier modelo:
+```cpp
+if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+    std::cerr << "[Assimp] ERROR: " << importer.GetErrorString() << "\n";
+    return false;  // no intentar procesar — crash garantizado si se ignora
+}
+```
+
+**Corrección de coordenadas GLTF** — problemas comunes de assets de Sketchfab:
+
+| Síntoma | Causa | Corrección |
+|---------|-------|-----------|
+| Modelo 100× más grande de lo esperado | Unidades en cm (Blender a veces exporta en cm) | Aplicar `glm::scale(model, glm::vec3(0.01f))` |
+| Modelo invertido en Z | Z-up vs Y-up | `glm::rotate(model, glm::radians(-90.0f), glm::vec3(1,0,0))` |
+| Modelo al revés (back-facing) | Handedness incorrecto | Añadir `aiProcess_FlipWindingOrder` a los flags |
+| Modelo enterrado bajo el suelo | Pivote en el origen incorrecto | Ajustar offset Y en el model matrix |
+
+Política: **siempre verificar con screenshot al cargar un nuevo asset** antes de continuar. Si la escala está mal, corregirla en el model matrix — no modificar el archivo original.
 
 #### 3.2 `src/scene/ResourceManager.h/.cpp`
 
@@ -1103,7 +1292,7 @@ shader.setMat3("normalMatrix", normalMatrix);
 
 **Checklist**:
 - [ ] Las caras opuestas a la luz son más oscuras (no todas del mismo brillo)
-- [ ] El specular (punto brillante) es visible en superficies cuando la cámara está en ángulo
+- [ ] Highlight especular visible en screenshot con cámara en ángulo lateral (~45°): punto brillante concentrado en superficies con `shininess=32`, claramente distinguible de la componente difusa
 - [ ] El suelo tiene variación de brillo correcta
 - [ ] Los modelos GLTF reciben iluminación correcta (normales correctas desde Assimp)
 - [ ] Sin caras completamente negras (luz ambiental activa)
@@ -1121,65 +1310,13 @@ FragColor = vec4(Normal * 0.5 + 0.5, 1.0);  // RGB = XYZ de la normal
 
 ---
 
-## Fase 7 — Shaders Avanzados
+## Fase 7A — Skybox, Niebla y Pipeline de Transparencias
 
-**Objetivo**: Fresnel en el shader principal, agua procedural (shader del profesor adaptado), skybox cubemap, y niebla exponencial.
+**Objetivo**: Skybox cubemap ártico, niebla exponencial en el shader estándar, y el orden de render con transparencias definido e implementado. Estas tres cosas deben funcionar juntas antes de añadir shaders de agua y Fresnel.
 
 ### Tareas
 
-#### 7.1 Fresnel en `shaders/standard.frag`
-
-Agregar al final del fragment shader:
-
-```glsl
-// Fresnel — efecto borde para hielo y agua
-uniform float fresnelStrength;  // 0.0 para objetos sin Fresnel; ~0.8 para hielo/agua
-uniform vec3 fresnelColor;      // color del borde Fresnel
-
-float fresnel = pow(1.0 - max(dot(norm, viewDir), 0.0), 3.0);
-vec3 fresnelContrib = fresnel * fresnelStrength * fresnelColor;
-result += fresnelContrib;
-```
-
-Para el hielo: `fresnelStrength = 0.6`, `fresnelColor = vec3(0.5, 0.8, 1.0)` (azul-blanco)
-Para el suelo: `fresnelStrength = 0.0` (sin Fresnel)
-
-#### 7.2 `shaders/water.vert` / `shaders/water.frag`
-
-Basado directamente en `13_wavesAnimation-fresnel.vs/.fs` del profesor. Adaptar:
-
-```glsl
-// water.vert — displacement vertical en vértices
-uniform float time;
-uniform float waveAmplitude;  // ~0.15 m
-uniform float waveFrequency;  // ~0.5
-
-void main() {
-    vec3 pos = aPos;
-    pos.y += waveAmplitude * sin(waveFrequency * pos.x + time)
-           + waveAmplitude * 0.5 * sin(waveFrequency * pos.z * 1.3 + time * 0.7);
-    gl_Position = projection * view * model * vec4(pos, 1.0);
-    // ... pasar FragPos, Normal, TexCoord ...
-}
-```
-
-```glsl
-// water.frag — color + Fresnel (del shader del profesor)
-uniform float time;
-
-void main() {
-    vec3 waterColor = vec3(0.1f, 0.23f, 0.36f);  // #1a3a5c
-    // Blinn-Phong aplicado al agua
-    // Fresnel fuerte en bordes
-    float fresnel = pow(1.0 - max(dot(norm, viewDir), 0.0), 2.5);
-    vec3 result = mix(waterColor, vec3(0.7, 0.9, 1.0), fresnel * 0.6);
-    FragColor = vec4(result, 0.85);  // semi-transparente
-}
-```
-
-Enviar `time` cada frame: `waterShader.setFloat("time", (float)glfwGetTime())`
-
-#### 7.3 `src/graphics/Skybox.h/.cpp`
+#### 7A.1 `src/graphics/Skybox.h/.cpp`
 
 ```cpp
 class Skybox {
@@ -1216,13 +1353,25 @@ cmgen --format=png --size=512 aurora_borealis.hdr
 # Colocar en assets/skybox/
 ```
 
-Alternativa si cmgen no está disponible: usar stb_image para cargar HDR equirectangular
-y convertir a cubemap con un shader de conversión (un render pass extra).
+**Alternativa** si cmgen no está disponible: skybox procedural con shader de gradiente ártico:
+```glsl
+// skybox.frag — alternativa procedural
+void main() {
+    vec3 dir = normalize(TexCoords);
+    float t = dir.y * 0.5 + 0.5;  // 0 = horizonte, 1 = cénit
+    vec3 skyTop    = vec3(0.04, 0.1, 0.18);   // azul oscuro ártico
+    vec3 skyBottom = vec3(0.55, 0.75, 0.85);  // azul pálido horizonte
+    // Aurora: banda verde en el horizonte
+    float auroraFactor = smoothstep(0.1, 0.3, t) * smoothstep(0.7, 0.3, t);
+    vec3 aurora = vec3(0.0, 0.6, 0.4) * auroraFactor * 0.35;
+    FragColor = vec4(mix(skyBottom, skyTop, t) + aurora, 1.0);
+}
+```
 
-#### 7.4 Niebla exponencial en `standard.frag`
+#### 7A.2 Niebla exponencial en `standard.frag`
 
 ```glsl
-// Al final de main() en standard.frag
+// Al final de main() en standard.frag, antes de FragColor
 uniform vec3  fogColor;    // #e8eef2 — blanco-gris muy pálido
 uniform float fogDensity;  // ~0.008
 
@@ -1232,37 +1381,131 @@ result = mix(fogColor, result, fogFactor);
 FragColor = vec4(result, texColor.a);
 ```
 
-#### 7.5 Orden de render con transparencia
+Enviar cada frame: `standardShader.setVec3("fogColor", {0.91f, 0.93f, 0.95f}); standardShader.setFloat("fogDensity", 0.008f);`
 
-Desde esta fase en adelante, orden de render **obligatorio** en cada frame:
+#### 7A.3 Definir e implementar el orden de render con transparencias
 
+Este paso es el más crítico de 7A. Implementar el loop de render con capas bien separadas:
+
+```cpp
+void renderFrame() {
+    // Restaurar estado OpenGL al inicio del frame
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // 1. Opacos
+    renderOpaque();  // suelo, plataformas, modelos 3D
+
+    // 2. Skybox (depth trick: renderizar al final pero antes de transparentes)
+    renderSkybox();  // glDepthFunc(GL_LEQUAL) durante skybox, restaurar después
+
+    // 3. Transparentes (en orden back-to-front para alpha blending correcto)
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    renderWater();       // 3a — agua (semi-transparente, 0.85 alpha)
+    renderSnow();        // 3b — nieve (billboards, alpha ~0.6)
+    renderSigns();       // 3c — letreros (fondo semi-opaco)
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    // 4. UI — siempre el último
+    renderDebugOverlay();
+}
 ```
-1. glDepthMask(GL_TRUE)   → renderizar opacos (suelo, plataformas, modelos)
-2. Skybox                  → depth trick xyww, glDepthMask(GL_TRUE)
-3. glDepthMask(GL_FALSE)  → renderizar transparentes (agua, nieve, letreros)
-   3a. Agua (semi-transparente)
-   3b. Partículas de nieve (alpha blending)
-   3c. Letreros (alpha blending con fondo semi-opaco)
-4. glDepthMask(GL_TRUE)   → restaurar
-5. ImGui                  → siempre al último
-```
 
-### Verificación de la Fase 7
+Verificar con un quad transparente de prueba (alpha=0.5) sobre el cubo: si el cubo es visible a través del quad, el blending está correcto.
+
+### Verificación de la Fase 7A
 
 **Screenshots requeridos**:
-
-1. **Skybox**: vista hacia el cielo — aurora boreal visible, gradiente azul ártico
-2. **Agua con ondas**: M3-izq con `waterY = -0.5` — ondas visibles en el plano de agua
-3. **Fresnel**: vista oblicua del plano de agua — borde blanco-azulado visible en los bordes
-4. **Niebla**: vista desde el vestíbulo hacia el horizonte — los módulos lejanos (M3, M5) difuminados
+1. **Skybox**: vista hacia el cielo — aurora boreal (o gradiente procedural) visible, sin cortar modelos
+2. **Niebla**: vista desde el vestíbulo hacia el fondo — módulos lejanos (M3, M5) difuminados
+3. **Transparencias**: quad semi-transparente sobre cubo — cubo visible a través del quad
 
 **Checklist**:
-- [ ] Skybox se ve sin artefactos de profundidad (no tapa los modelos)
-- [ ] Agua tiene movimiento visible de ondas (seno en vértices)
-- [ ] Fresnel visible en ángulos oblicuos del agua
-- [ ] Niebla suaviza el horizonte sin afectar objetos cercanos (r < 30 m)
-- [ ] No hay z-fighting entre agua y suelo
-- [ ] ImGui no rompe el estado de profundidad (verificar que `glEnable(GL_DEPTH_TEST)` está activo al inicio del siguiente frame)
+- [ ] Skybox visible sin artefactos de profundidad (no tapa los modelos del museo)
+- [ ] Niebla suaviza el horizonte sin afectar objetos a menos de ~30 m de la cámara
+- [ ] El orden opacos → skybox → transparentes está implementado en `renderFrame()`
+- [ ] `glDepthMask(GL_TRUE)` restaurado después de la etapa de transparentes
+- [ ] `glEnable(GL_DEPTH_TEST)` activo al inicio del siguiente frame (ImGui no lo rompe)
+
+---
+
+## Fase 7B — Agua Procedural y Fresnel
+
+**Objetivo**: Shader de agua con displacement seno en vértices y efecto Fresnel, basado en los shaders del profesor. Esta es la parte técnicamente más frágil del proyecto — se implementa después de que el pipeline de render esté estable (7A completa).
+
+### Tareas
+
+#### 7B.1 Fresnel en `shaders/standard.frag`
+
+Agregar al fragment shader estándar (para hielo y superficies con Fresnel):
+
+```glsl
+// Fresnel — efecto borde para hielo y agua
+uniform float fresnelStrength;  // 0.0 para objetos sin Fresnel; ~0.6 para hielo
+uniform vec3 fresnelColor;      // color del borde Fresnel
+
+float fresnel = pow(1.0 - max(dot(norm, viewDir), 0.0), 3.0);
+vec3 fresnelContrib = fresnel * fresnelStrength * fresnelColor;
+result += fresnelContrib;
+```
+
+Para el hielo (suelo, plataformas): `fresnelStrength = 0.6`, `fresnelColor = vec3(0.5, 0.8, 1.0)` (azul-blanco)
+Para modelos normales: `fresnelStrength = 0.0` (sin Fresnel)
+
+**Verificación del Fresnel**: screenshot desde ángulo oblicuo (cámara casi a nivel del suelo mirando hacia adelante) — el borde del suelo debe verse más blanco/azulado que el centro.
+
+#### 7B.2 `shaders/water.vert` / `shaders/water.frag`
+
+Basado directamente en `13_wavesAnimation-fresnel.vs/.fs` del profesor. Adaptar:
+
+```glsl
+// water.vert — displacement vertical en vértices
+uniform float time;
+uniform float waveAmplitude;  // ~0.15 m
+uniform float waveFrequency;  // ~0.5
+
+void main() {
+    vec3 pos = aPos;
+    pos.y += waveAmplitude * sin(waveFrequency * pos.x + time)
+           + waveAmplitude * 0.5 * sin(waveFrequency * pos.z * 1.3 + time * 0.7);
+    gl_Position = projection * view * model * vec4(pos, 1.0);
+    // ... pasar FragPos, Normal, TexCoord ...
+}
+```
+
+```glsl
+// water.frag — color + Fresnel (del shader del profesor)
+void main() {
+    vec3 waterColor = vec3(0.1, 0.23, 0.36);  // #1a3a5c
+    // Fresnel fuerte en bordes del agua
+    float fresnel = pow(1.0 - max(dot(norm, viewDir), 0.0), 2.5);
+    vec3 result = mix(waterColor, vec3(0.7, 0.9, 1.0), fresnel * 0.6);
+    FragColor = vec4(result, 0.85);  // semi-transparente
+}
+```
+
+Enviar `time` cada frame: `waterShader.setFloat("time", (float)glfwGetTime())`
+
+El plano de agua debe tener suficientes subdivisiones para que el displacement sea visible (~64×64 vértices).
+
+### Verificación de la Fase 7B
+
+**Screenshots requeridos** (usar `--test-module M3_IZQ` para posicionarse frente al agua):
+1. **Agua con ondas**: plano de agua visible con ondulación seno activa (visible en f300 o f600, no en f060)
+2. **Fresnel en agua**: vista oblicua — bordes del agua más claros que el centro
+3. **Fresnel en suelo/hielo**: vista oblicua del suelo — borde periférico más brillante
+
+**Checklist**:
+- [ ] Agua anima con función seno (visible comparando screenshot_f060 vs screenshot_f300)
+- [ ] Fresnel visible en ángulos oblicuos: borde blanco-azulado en agua y hielo
+- [ ] Agua renderiza sin z-fighting con el suelo (orden transparencias de 7A correctamente aplicado)
+- [ ] `time` uniform actualizado cada frame (sin agua estática)
 
 ---
 
@@ -1452,6 +1695,39 @@ Cada letrero genera su textura al inicio con el contenido específico:
 
 La textura se genera **una sola vez en Init()** y se reutiliza.
 
+**Configuración de rangos de glifos para español** (G5 — crítico):
+
+stb_truetype solo rasteriza ASCII 32-127 por defecto. Para soportar acentos (á é í ó ú ñ Á É Í Ó Ú Ñ) y signos (¿ ¡), se debe usar `stbtt_PackFontRanges` con Latin-1 Supplement:
+
+```cpp
+// En SignSystem::init() — antes de generar texturas de letreros
+stbtt_pack_context packCtx;
+unsigned char* atlasPixels = new unsigned char[1024 * 512];
+stbtt_PackBegin(&packCtx, atlasPixels, 1024, 512, 0, 1, nullptr);
+
+// Rango 1: ASCII estándar (32-127)
+// Rango 2: Latin-1 Supplement (192-255) — á é í ó ú ñ ¿ ¡ y variantes mayúsculas
+stbtt_pack_range ranges[2];
+stbtt_packedchar charData[128 + 64];  // 96 ASCII + 64 Latin-1
+
+ranges[0].font_size           = 24.0f;
+ranges[0].first_unicode_codepoint_in_range = 32;
+ranges[0].num_chars           = 96;
+ranges[0].chardata_for_range  = charData;
+
+ranges[1].font_size           = 24.0f;
+ranges[1].first_unicode_codepoint_in_range = 192;
+ranges[1].num_chars           = 64;
+ranges[1].chardata_for_range  = charData + 96;
+
+stbtt_PackFontRanges(&packCtx, fontData.data(), 0, ranges, 2);
+stbtt_PackEnd(&packCtx);
+// Subir atlasPixels como textura GL_RED → GL_RGBA en shader con color uniforme
+```
+
+> **Nota**: los textos de los letreros en blueprint 01 usan tildes y signos españoles.
+> Si se omite este rango, esos caracteres aparecerán como cuadros vacíos en el atlas.
+
 #### 9.6 `src/audio/AudioEngine.h/.cpp`
 
 ```cpp
@@ -1621,7 +1897,7 @@ Instalar en una máquina sin el entorno de desarrollo y ejecutar el recorrido co
 - [ ] Build Release compila sin warnings críticos
 - [ ] El ejecutable arranca desde el instalador sin DLLs adicionales
 - [ ] Recorrido completo de inicio a fin sin crashes: 3 ejecuciones consecutivas
-- [ ] Duración de ejecución estable: 15+ minutos sin crashes ni degradación visible
+- [ ] Duración de ejecución estable: 15+ minutos sin crashes, sin degradación de FPS progresiva, y sin crecimiento continuo de recursos OpenGL (verificar con RenderDoc: conteo de texturas y VAOs igual entre frame 60 y frame 3600)
 - [ ] FPS ≥45 en hardware objetivo
 - [ ] Los 7 módulos tienen animación LERP funcional con tecla E y reset al salir
 - [ ] Letreros muestran texto correcto en español con fuentes verificadas
