@@ -22,18 +22,20 @@ public:
         mCube = makeCube();
         mDisc = makeDisc(1.0f, 24, 0.08f);
         // Modelos de módulos
-        mTreeModel.load(ASSETS_DIR "models/tree.glb");
+        mPineModel.load(ASSETS_DIR "models/pine_snow.glb");  // Quaternius CC0 (textura embebida)
         mCarModel.load(ASSETS_DIR "models/electric_car.glb");
         mBuildingA.load(ASSETS_DIR "models/building_a.glb");
         mBuildingB.load(ASSETS_DIR "models/building_b.glb");
         mBuildingC.load(ASSETS_DIR "models/building_c.glb");
         mGlobeModel.load(ASSETS_DIR "models/globe.glb");
         mIcebergModel.load(ASSETS_DIR "models/iceberg.glb");
+        mRockModel.load(ASSETS_DIR "models/rock.glb");       // Quaternius CC0 (decoración)
         mBearModel.load(ASSETS_DIR "models/polar_bear.glb"); // Quaternius Wolf CC0
         // Fauna
-        mFoxModel.load(ASSETS_DIR "models/fox.glb");       // KhronosGroup Fox
+        mFoxModel.load(ASSETS_DIR "models/fox.glb");       // KhronosGroup Fox (textura embebida)
         mBirdModel.load(ASSETS_DIR "models/seagull.glb");   // three.js Stork
         mSealModel.load(ASSETS_DIR "models/seal.glb");      // Quaternius Husky CC0
+        mWhaleModel.load(ASSETS_DIR "models/whale.glb");   // Quaternius CC0
     }
 
     // Dibuja la escena de un módulo.
@@ -55,10 +57,11 @@ public:
 
     void free() {
         mCube.free(); mDisc.free();
-        mTreeModel.free(); mCarModel.free();
+        mPineModel.free(); mCarModel.free();
         mBuildingA.free(); mBuildingB.free(); mBuildingC.free();
-        mGlobeModel.free(); mIcebergModel.free(); mBearModel.free();
-        mFoxModel.free(); mBirdModel.free(); mSealModel.free();
+        mGlobeModel.free(); mIcebergModel.free(); mRockModel.free();
+        mBearModel.free(); mFoxModel.free(); mBirdModel.free();
+        mSealModel.free(); mWhaleModel.free();
     }
 
     // ── Fauna decorativa estática ──────────────────────────────────────────
@@ -90,18 +93,45 @@ public:
         if (mSealModel.loaded) {
             glm::vec3 gray(0.75f, 0.78f, 0.82f);
             glm::mat4 m = glm::translate(glm::mat4(1.f), {-15.0f, 0.0f, 25.0f});
-            m = glm::scale(m, glm::vec3(10.0f)); // Quaternius Husky ~0.08m nativo
+            m = glm::scale(m, glm::vec3(10.0f));
             mdl(sh, m);
             mSealModel.draw(sh, &gray);
         } else {
             drawSeal(sh, {-15.0f, 0.0f, 25.0f});
         }
+
+        // Ballena decorativa (Quaternius, fuera del corredor izq)
+        if (mWhaleModel.loaded) {
+            glm::vec3 blueGray(0.45f, 0.55f, 0.70f);
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {-18.0f, 3.5f, 50.0f});
+            m = glm::rotate(m, glm::radians(25.f), {0.f, 1.f, 0.f});
+            m = glm::scale(m, glm::vec3(12.0f));
+            mdl(sh, m);
+            mWhaleModel.draw(sh, &blueGray);
+        }
+
+        // Rocas decorativas (Quaternius, dispersas en corredores)
+        if (mRockModel.loaded) {
+            glm::vec3 rockCol(0.70f, 0.75f, 0.80f);
+            glm::vec3 rockPositions[] = {
+                {-18.0f, 0.0f, 18.0f}, {-6.0f, 0.0f, 35.0f},
+                { 18.0f, 0.0f, 20.0f}, { 6.0f, 0.0f, 55.0f},
+            };
+            float rockScales[] = {3.0f, 2.5f, 3.5f, 2.0f};
+            for (int i = 0; i < 4; i++) {
+                glm::mat4 m = glm::translate(glm::mat4(1.f), rockPositions[i]);
+                m = glm::rotate(m, glm::radians(i * 73.f), {0.f, 1.f, 0.f});
+                m = glm::scale(m, glm::vec3(rockScales[i]));
+                mdl(sh, m);
+                mRockModel.draw(sh, &rockCol);
+            }
+        }
     }
 
 private:
     Mesh mCube, mDisc;
-    Model mTreeModel, mCarModel, mBuildingA, mBuildingB, mBuildingC, mGlobeModel;
-    Model mIcebergModel, mBearModel, mFoxModel, mBirdModel, mSealModel;
+    Model mPineModel, mCarModel, mBuildingA, mBuildingB, mBuildingC, mGlobeModel;
+    Model mIcebergModel, mRockModel, mBearModel, mFoxModel, mBirdModel, mSealModel, mWhaleModel;
 
     // ── Fauna helpers ──────────────────────────────────────────────────────
     void drawSeal(Shader& sh, glm::vec3 pos) {
@@ -191,13 +221,13 @@ private:
         float sy = glm::mix(2.8f, 0.2f, t);
 
         if (mIcebergModel.loaded) {
-            // Roca Kenney como iceberg — forzar color azul hielo
+            // Roca con nieve como iceberg — forzar color azul hielo
             glm::vec3 iceCol = glm::mix(glm::vec3(0.78f, 0.92f, 1.0f), glm::vec3(0.35f, 0.60f, 0.82f), t);
-            float s = glm::mix(1.2f, 0.15f, t);
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z});
-            m = glm::scale(m, glm::vec3(s * 1.5f, s, s * 1.3f));
+            float s = glm::mix(5.0f, 0.3f, t); // grande e imponente
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.1f, c.z});
+            m = glm::scale(m, glm::vec3(s * 2.5f, s * 2.0f, s * 2.2f));
             mdl(sh, m);
-            mIcebergModel.draw(sh, &iceCol); // forzar color azul
+            mIcebergModel.draw(sh, &iceCol);
             return;
         }
         glm::vec3 iceCol = glm::mix(
@@ -238,9 +268,9 @@ private:
 
         // Oso polar (Quaternius Wolf CC0 — blanco crema para contraste con hielo)
         if (mBearModel.loaded) {
-            glm::vec3 cream(0.90f, 0.88f, 0.82f); // crema cálido, distinto del hielo azulado
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.3f, c.z + 1.0f});
-            m = glm::scale(m, glm::vec3(25.0f)); // bien grande para que se vea desde la cámara
+            glm::vec3 cream(0.92f, 0.90f, 0.85f); // crema cálido, distinto del hielo azulado
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x + 1.0f, c.y + 0.15f, c.z});
+            m = glm::scale(m, glm::vec3(35.0f)); // más grande para visibilidad
             mdl(sh, m);
             mBearModel.draw(sh, &cream);
         } else {
@@ -258,15 +288,20 @@ private:
         float waterY = glm::mix(-0.6f, 3.2f, t);
 
         if (mBuildingA.loaded) {
-            // Usar modelos reales de edificios (Kenney ~4-6 unidades alto, escalar a ~3-5m)
-            float offsets[][2] = {{-2.0f, -1.0f}, {0.5f, 1.0f}, {2.5f, -0.5f}};
+            // Edificios Kenney (sin textura embebida → forzar colores de concreto)
+            float offsets[][2] = {{-3.0f, -1.5f}, {0.0f, 2.0f}, {3.0f, -0.5f}};
             Model* bldModels[] = {&mBuildingA, &mBuildingB, &mBuildingC};
+            glm::vec3 bldColors[] = {
+                {0.72f, 0.68f, 0.62f}, // concreto cálido
+                {0.65f, 0.62f, 0.58f}, // concreto oscuro
+                {0.78f, 0.74f, 0.70f}, // concreto claro
+            };
             for (int i = 0; i < 3; i++) {
                 glm::mat4 m = glm::translate(glm::mat4(1.f),
                     {c.x + offsets[i][0], c.y, c.z + offsets[i][1]});
-                m = glm::scale(m, glm::vec3(0.55f));
+                m = glm::scale(m, glm::vec3(1.8f)); // escala grande para llenar la escena
                 mdl(sh, m);
-                bldModels[i]->draw(sh);
+                bldModels[i]->draw(sh, &bldColors[i]);
             }
         } else {
             // Fallback procedural
@@ -300,27 +335,32 @@ private:
     // animT=0: turbina parada
     // animT=1: girando a 120°/s
     void drawTurbine(Shader& sh, glm::vec3 c, float t, float time) {
-        // Poste — alto y visible
-        col(sh, glm::vec3(0.82f, 0.83f, 0.85f));
-        mdl(sh, TS({c.x, c.y + 3.0f, c.z}, {0.30f, 6.0f, 0.30f}));
+        // Base circular (cimiento)
+        col(sh, glm::vec3(0.65f, 0.66f, 0.68f));
+        mdl(sh, TS({c.x, c.y + 0.15f, c.z}, {1.2f, 0.3f, 1.2f}));
         mCube.draw();
 
-        // Góndola
-        col(sh, glm::vec3(0.86f, 0.86f, 0.88f));
-        mdl(sh, TS({c.x, c.y + 6.1f, c.z - 0.15f}, {0.55f, 0.40f, 0.80f}));
+        // Poste — grueso y alto
+        col(sh, glm::vec3(0.88f, 0.89f, 0.91f));
+        mdl(sh, TS({c.x, c.y + 2.8f, c.z}, {0.55f, 5.3f, 0.55f}));
         mCube.draw();
 
-        // 3 palas — más gruesas y largas para que sean visibles
-        float speed = glm::mix(0.0f, 120.0f, t);
+        // Góndola — visible
+        col(sh, glm::vec3(0.92f, 0.92f, 0.94f));
+        mdl(sh, TS({c.x, c.y + 5.5f, c.z - 0.3f}, {0.8f, 0.55f, 1.2f}));
+        mCube.draw();
+
+        // 3 palas — grandes
+        float speed = glm::mix(0.0f, 80.0f, t);
         float angle = speed * time;
 
-        glm::vec3 bladeCol{0.92f, 0.93f, 0.96f};
+        glm::vec3 bladeCol{0.95f, 0.96f, 0.98f};
         for (int i = 0; i < 3; i++) {
             float a = angle + i * 120.0f;
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 5.9f, c.z - 0.50f});
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 5.4f, c.z - 0.7f});
             m = glm::rotate(m, glm::radians(a), {0.f, 0.f, 1.f});
-            m = glm::translate(m, {0.f, 1.8f, 0.f});
-            m = glm::scale(m, {0.18f, 3.4f, 0.08f});
+            m = glm::translate(m, {0.f, 1.6f, 0.f});
+            m = glm::scale(m, {0.30f, 3.0f, 0.12f});
             col(sh, bladeCol);
             mdl(sh, m);
             mCube.draw();
@@ -335,11 +375,15 @@ private:
         float zOff = sinf(time * glm::pi<float>() / 3.0f) * 2.4f * t;
 
         if (mCarModel.loaded) {
+            // Color: gris metálico → azul eléctrico con animT (forzado, Kenney no tiene textura embebida)
+            glm::vec3 carCol = glm::mix(
+                glm::vec3(0.30f, 0.34f, 0.40f),
+                glm::vec3(0.12f, 0.55f, 0.95f), t);
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z + zOff});
             m = glm::rotate(m, glm::radians(90.f), {0.f, 1.f, 0.f});
-            m = glm::scale(m, glm::vec3(0.8f)); // Kenney car ~2 unidades → ~1.6m
+            m = glm::scale(m, glm::vec3(0.8f));
             mdl(sh, m);
-            mCarModel.draw(sh);
+            mCarModel.draw(sh, &carCol);
             return;
         }
 
@@ -388,12 +432,12 @@ private:
     void drawTree(Shader& sh, glm::vec3 c, float t) {
         float s = glm::mix(0.02f, 1.0f, t); // factor de escala global
 
-        if (mTreeModel.loaded) {
-            // Modelo real: escalar con animT
+        if (mPineModel.loaded) {
+            // Pino con nieve Quaternius (textura embebida — se ve bien sin colormap)
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z});
-            m = glm::scale(m, glm::vec3(s * 3.0f)); // Kenney trees son ~1 unidad
+            m = glm::scale(m, glm::vec3(s * 2.5f)); // Quaternius ~1-2m nativo
             mdl(sh, m);
-            mTreeModel.draw(sh);
+            mPineModel.draw(sh); // tiene textura embebida
             return;
         }
         // Fallback procedural
@@ -421,10 +465,10 @@ private:
         float rot = time * 18.0f; // 18°/s constante
 
         if (mGlobeModel.loaded) {
-            // DamagedHelmet como globo terráqueo (esfera textorizada)
-            glm::mat4 gm = glm::translate(glm::mat4(1.f), {c.x, c.y + 3.2f, c.z});
+            // DamagedHelmet como símbolo del planeta dañado
+            glm::mat4 gm = glm::translate(glm::mat4(1.f), {c.x, c.y + 2.5f, c.z});
             gm = glm::rotate(gm, glm::radians(rot), {0.f, 1.f, 0.f});
-            gm = glm::scale(gm, glm::vec3(1.8f));
+            gm = glm::scale(gm, glm::vec3(1.0f)); // más modesto para no abrumar
             mdl(sh, gm);
             mGlobeModel.draw(sh);
         } else {

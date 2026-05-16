@@ -1,190 +1,88 @@
 # Pendientes del Proyecto — CGEIHC-P
 
 > Proyecto: Calentamiento global en el polo norte
-> Última actualización: 2026-05-16
-> Estado general: **Proyecto con modelos 3D reales integrados — QA visual en progreso**
+> Ultima actualizacion: 2026-05-16
+> Estado general: **QA Visual v3 — Modelos Quaternius CC0 integrados, escalas calibradas**
 
 ---
 
 ## Estado Actual
 
-### ✅ Completado
+### Modelos 3D (16 archivos GLB en app/assets/models/)
 
-- Primera entrega (06/05/2026): Idea + Boceto + Storyboard + Blueprints + Modelado + Rigging + Materiales + Animación + Iluminación/Texturizado + Renderizado + Sonido + Interacción
-- **9 documentos blueprint completados** (01 al 09 en `blueprints/`)
-- **Stack técnico validado** y documentado en `INFRAESTRUCTURA.md`
-  - miniaudio (header-only) en lugar de OpenAL Soft + libsndfile
-  - glReadPixels + stb_image_write para screenshots autónomos
-  - FetchContent con tags congelados (glfw 3.4, glm 1.0.1, assimp v5.4.3, imgui v1.91.6)
-- Consulta externa a Gemini + GPT para plan de implementación
-- **Fase 0** — Bootstrap CMake ✅ (build reproducible, todas las dependencias)
-- **Fase 1** — Motor Core ✅ (Window, Input, Time, CameraFPS, AppState loop)
-- **Fase 2** — Pipeline de render ✅ (Shader, Mesh, Texture, matrices MVP)
-- **Fase 3** — Asset Pipeline ✅ (Model.h con Assimp GLTF/OBJ)
-- **Fase 4** — Layout del museo ✅ (suelo, techo, paredes, 7 plataformas, AABB)
-- **Fase 5** — Animaciones LERP ✅ (7 módulos, tecla E, test mode CLI)
-- **Fase 6** — Blinn-Phong + Fresnel ✅ (luz hemisférica + specular + Schlick)
-- **Fase 7A** — Skybox cubemap ártico ✅ (cubemap procedural 64×64, aurora boreal)
-- **Fase 7B** — Shader de agua ✅ (vertex displacement seno 3 capas + Fresnel + espuma)
-- **Fase 8** — Efectos y fauna ✅ (100 copos billboard, foca + zorro + gaviota)
-- **Fase 9** — UI + letreros + audio ✅ (ImGui narrativo, letreros 3D en cruz, miniaudio)
-- **Fase 10** — Integración narrativa ✅ (pantalla título + cierre desde M5 + 5s countdown)
-- **Fase 11** — QA ✅ (todos los módulos 59-61 FPS, animaciones correctas)
+| Modelo | Origen | Textura | Uso en escena |
+|--------|--------|---------|---------------|
+| pine_snow.glb | Quaternius CC0 | Embebida | M3_DER arbol que crece |
+| electric_car.glb | Kenney CC0 | Color override azul | M2_DER auto electrico |
+| building_a/b/c.glb | Kenney CC0 | Color override concreto | M3_IZQ ciudad inundada |
+| globe.glb | KhronosGroup CC0 | Embebida (metal) | M5 globo giratorio |
+| iceberg.glb | Quaternius CC0 | Color override azul hielo | M1_IZQ iceberg derritiendose |
+| polar_bear.glb | Quaternius CC0 | Color override crema | M2_IZQ oso polar sobre hielo |
+| fox.glb | KhronosGroup CC0 | Embebida | Fauna decorativa (zorro) |
+| seagull.glb | three.js (Stork) | Color override blanco | Fauna decorativa (ave) |
+| seal.glb | Quaternius CC0 | Color override gris | Fauna decorativa (foca) |
+| whale.glb | Quaternius CC0 | Color override azul-gris | Fauna decorativa (ballena) |
+| rock.glb | Quaternius CC0 | Color override gris | Decoracion rocas (4 posiciones) |
+| tree.glb | Kenney CC0 | Sin textura (legacy) | No usado (reemplazado por pine_snow) |
 
-#### Resultados QA (frame 600, ~10 segundos):
+### Resultados QA Visual v3
 
-| Módulo | FPS | animT | Estado |
-|--------|-----|-------|--------|
-| M1_IZQ | 60.97 | 0.895 | ✅ |
-| M2_IZQ | 60.99 | 1.000 | ✅ |
-| M3_IZQ | 59.96 | 0.746 | ✅ |
-| M1_DER | 59.11 | 1.000 | ✅ |
-| M2_DER | 59.11 | 1.000 | ✅ |
-| M3_DER | 60.94 | 1.000 | ✅ |
-| M5     | 59.13 | 0.746 | ✅ |
-
----
-
-## Prioridad Inmediata — Bugs Visuales Pendientes
-
-Estos bugs fueron identificados durante QA visual v2 y necesitan atención:
-
-### Bugs de Renderizado (afectan presentación)
-- [ ] **Techo invisible** — se ve el skybox al mirar arriba; el winding order del techo puede estar incorrecto o hay gaps entre paredes y techo
-- [ ] **Modelo wolf no renderiza** — Wolf_with_Animations.glb tiene skeletal animation que Assimp carga pero no se renderiza sin Animator; se usa Fox como sustituto temporal
-- [ ] **Letreros todavía visibles como líneas blancas** desde ciertos ángulos lejanos — considerar eliminarlos y usar solo ImGui
-- [ ] **Pato (Duck) como gaviota** — el modelo es amarillo brillante, poco coherente con estética ártica; considerar color override blanco
-
-### Mejoras Visuales Recomendadas
-- [ ] **Textura del techo** — actualmente usa baseColor gris plano; aplicar wallTex (concreto claro)
-- [ ] **Decoración adicional** — agregar rocas (rock.glb) como decoración en los corredores
-- [ ] **Turbina eólica sigue siendo procedural** — buscar modelo GLB de turbina
-- [ ] **Iluminación interior** — considerar agregar point lights por módulo para mejor visibilidad
-
-### Entregables Pendientes
-- [ ] **Crear instalador** con InstallForge GUI desde `dist/`
-- [ ] **Grabar video** con OBS + editar con DaVinci Resolve (guión en `docs/reports/guion-video.md`)
-- [ ] **Convertir reportes a PDF** (Pandoc/Word)
-- [ ] **Presentación oral**
-
-### Estado de Modelos 3D (2026-05-16)
-
-| Módulo | Modelo | Estado Visual |
-|--------|--------|--------------|
-| M1_IZQ Iceberg | cliff_rock.glb (Kenney) + color azul override | OK — roca azulada que encoge |
-| M2_IZQ Oso | fox.glb (KhronosGroup) + color blanco | OK — animal cuadrúpedo blanco |
-| M3_IZQ Edificios | building_a/b/c.glb (Kenney City) | OK — edificios reconocibles |
-| M1_DER Turbina | Procedural (cubos) | Aceptable — poste + palas |
-| M2_DER Auto | electric_car.glb (Kenney Car) | OK — sedan reconocible |
-| M3_DER Árbol | tree.glb (Kenney Nature) | OK — cono verde con tronco |
-| M5 Globo | DamagedHelmet.glb (KhronosGroup) | OK — esfera textorizada |
-| Fauna Zorro | fox.glb (KhronosGroup) | OK — zorro naranja |
-| Fauna Gaviota | duck.glb (KhronosGroup) | Funcional — pato amarillo |
-| Fauna Foca | Procedural (cubos) | Aceptable — forma alargada gris |
+| Escena | Estado | Notas |
+|--------|--------|-------|
+| Vestibulo | Funcional | Suelo texturizado, paredes, techo. Espacio vacio pero funcional |
+| M1_IZQ Iceberg | OK | Roca azul que encoge con animT. Escala 5.0 base |
+| M2_IZQ Oso polar | OK | Wolf modelo crema sobre disco de hielo |
+| M3_IZQ Edificios | OK | 3 edificios concreto a escala 1.8. Agua sube con animT |
+| M1_DER Turbina | Funcional | Procedural: poste + gondola + 3 palas rotatorias |
+| M2_DER Auto | OK | Kenney car azul con movimiento sinusoidal |
+| M3_DER Arbol | OK | Pino nevado que crece de semilla a arbol completo |
+| M5 Globo | OK | DamagedHelmet texturizado, rotacion constante |
+| Fauna | OK | Zorro, ave, foca, ballena, 4 rocas dispersas |
+| Skybox | OK | Cubemap procedural artico con aurora |
+| Agua | OK | Shader sinusoidal + Fresnel, Y=-0.6 (no traspasa suelo) |
+| Nieve | OK | 100 billboards cayendo |
 
 ---
 
-## Fases de Implementación
+## Bugs Visuales Conocidos
 
-Referencia completa: `blueprints/09-orden-desarrollo.md`
+### Criticos (afectan presentacion)
+- [ ] **Modelos Kenney sin textura embebida** — tree.glb, electric_car.glb, building_a/b/c.glb referencian `Textures/colormap.png` que no existe; se fuerzan colores override como workaround
+- [ ] **Letreros 3D como lineas blancas** — los cubos en cruz de 15cm grosor son visibles como lineas diagonales desde lejos; considerar eliminarlos
 
-### Fase 0 — Bootstrap CMake ✅
-
-- [x] Crear `CMakeLists.txt` con FetchContent (GLFW 3.4, GLM 1.0.1, Assimp v5.4.3, ImGui v1.91.6)
-- [x] GLAD, stb_image, stb_image_write, stb_truetype, miniaudio.h en `src/vendor/`
-- [x] Build limpio: `cmake --build build --config Debug --parallel` → `CGEIHC.exe`
-
-**Criterio de salida**: ✅ `.exe` compila sin errores.
-
----
-
-### Fase 1 — Motor Core y Ventana ✅
-- [x] Window.h, Input.h, Time.h, CameraFPS.h — loop con AppState { TITULO, JUGANDO, CIERRE, SALIR }
-
-### Fase 2 — Pipeline de Render Básico ✅
-- [x] Shader.h, Mesh.h, Texture.h — matrices MVP, VAO/VBO/EBO
-
-### Fase 3 — Asset Pipeline ✅
-- [x] Model.h con Assimp GLTF/OBJ
-
-### Fase 4 — Layout del Museo ✅
-- [x] Museum.h — suelo, techo, paredes, 7 plataformas r=5m, AABB cámara
-
-### Fase 5 — Sistema de Módulos ✅
-- [x] ModuleScene.h — 7 animaciones LERP, activación con E, test mode CLI (`--test-module`)
-
-### Fase 6 — Iluminación Blinn-Phong ✅
-- [x] standard.frag — luz hemisférica ártica + Blinn-Phong + Fresnel (Schlick)
-
-### Fase 7A — Skybox Cubemap ✅
-- [x] Skybox.h — cubemap 64×64 procedural (zenith azul, horizonte, aurora boreal), depth trick
-
-### Fase 7B — Shader de Agua ✅
-- [x] water.vert/.frag — desplazamiento sinusoidal 3 capas + espuma + Fresnel
-- [x] makeGrid() en Mesh.h — 200×200m, 60×60 subdivisiones
-
-### Fase 8 — Efectos y Fauna ✅
-- [x] SnowSystem.h — 100 billboards orientados a cámara, caída + deriva sinusoidal
-- [x] Fauna: drawSeal, drawArcticFox, drawSeagull en ModuleScene.h
-
-### Fase 9 — UI + Letreros + Audio ✅
-- [x] Panel debug (FPS/posición) + panel narrativo centrado (nombre + barra progreso)
-- [x] Letreros 3D en cruz con labelColor sobre cada módulo (signCube compartido)
-- [x] miniaudio inicializado con fallback gracioso si no hay archivos de audio
-
-### Fase 10 — Integración Narrativa ✅
-- [x] Pantalla de título (fondo oscuro, texto, "[ESPACIO] para iniciar")
-- [x] Estado CIERRE activado cuando M5.animT=1.0 (con countdown 5s)
-- [x] Loop completo: TITULO → JUGANDO → CIERRE → SALIR
-
-### Fase 11 — QA ✅
-- [x] Todos los módulos verificados: 59.1–61.0 FPS, animaciones correctas
-- [x] PENDIENTES.md actualizado con estado real
+### Cosmeticos (no bloquean entrega)
+- [ ] **Vestibulo vacio** — no hay elementos decorativos al inicio; primera impresion es de corredor generico
+- [ ] **Turbina procedural delgada** — las palas de cubo son dificiles de ver; un modelo GLB seria mejor
+- [ ] **Fuente Roboto no cargada** — ImGui usa su fuente default por limitacion de paths Unicode en Windows
 
 ---
 
-## Integración de Assets Reales (Completado 2026-05-16)
+## Pendientes para Entrega Final
 
-- [x] **Texturas CC0** (ambientcg.com): 8 mapas de color (suelo, paredes, hielo, nieve, metal, madera, asfalto, water_normal)
-- [x] **Skybox CC0** (OpenGameArt.org): 6 caras PNG 512x512 cielo nublado
-- [x] **Modelos 3D CC0** (kenney.nl + KhronosGroup): árbol, auto, 3 edificios, globo (GLB)
-- [x] **Audio CC0** (archive.org): viento ártico, olas oceánicas, sonido de activación
-- [x] **Fuente**: Roboto-Regular.ttf (Google Fonts, Apache 2.0) — no se carga en ImGui por limitación de paths Unicode
-- [x] **Código integrado**: Skybox.h (carga PNGs), Model.h (ReadFileFromMemory), Museum.h (texturas), ModuleScene.h (modelos)
-- [x] **QA**: 59-61 FPS con assets reales en todos los módulos
+### Por el equipo (accion manual)
+- [ ] **Grabar video** con OBS + editar con DaVinci Resolve (guion en docs/reports/guion-video.md)
+- [ ] **Crear instalador** con InstallForge GUI desde dist/
+- [ ] **Convertir reportes a PDF** con Pandoc o Word
+- [ ] **Presentacion oral**
 
 ---
 
-## Entregables Finales
+## Fases de Implementacion — Todas Completadas
 
-- [x] **Software ejecutable** — `dist/CGEIHC.exe` + `dist/assets/` + `dist/shaders/`
-  - [x] `dist/README.txt` con instrucciones de uso
-- [x] **Reporte en español** — `docs/reports/reporte-es.md` (convertir a PDF con Pandoc o Word)
-- [x] **Reporte en inglés** — `docs/reports/report-en.md` (convertir a PDF)
-- [x] **Guión del video** — `docs/reports/guion-video.md` (3-5 min narrado)
-- [ ] **Video demostrativo** (grabar con OBS + editar en DaVinci Resolve)
-- [ ] **Crear instalador** con InstallForge desde `dist/`
-- [ ] **Presentación oral y digital**
-
----
-
-## Notas y Decisiones
-
-- El código fuente **no se entrega** — se revisa en sesiones de avances
-- Empaquetador: **InstallForge** (gratis, recomendado por el profesor)
-- Editor de video: **DaVinci Resolve** (gratis)
-- Referencias: **Mendeley o Zotero** para formato APA
-- Todo sube a **Google Drive** del equipo (enlace en Moodle)
-- Implementación **sin división de equipo** — Claude ejecuta toda la codificación
-
----
-
-## Recursos Útiles
-
-- **learnopengl.com** — Tutorial principal de referencia
-- **cursos.computer-graphics.com.mx** — Plataforma del curso (Moodle)
-- **Shaders del profesor**: `13_wavesAnimation-fresnel.vs/.fs` (base para agua y Fresnel)
-- **Texturas CC0**: ambientcg.com, polyhaven.com, 3dtextures.me
-- **Modelos 3D CC0**: sketchfab.com (filtro CC0), polyhaven.com
-- **Audio CC0**: freesound.org
-- **Fuente**: Roboto-Regular.ttf (Google Fonts, Apache 2.0)
+| Fase | Descripcion | Estado |
+|------|-------------|--------|
+| 0 | Bootstrap CMake + dependencias | Completada |
+| 1 | Motor core (Window, Input, Time, CameraFPS) | Completada |
+| 2 | Pipeline de render (Shader, Mesh, Texture, MVP) | Completada |
+| 3 | Asset pipeline (Model.h con Assimp) | Completada |
+| 4 | Layout del museo (suelo, techo, paredes, plataformas) | Completada |
+| 5 | Animaciones LERP (7 modulos, tecla E, test mode) | Completada |
+| 6 | Blinn-Phong + Fresnel | Completada |
+| 7A | Skybox cubemap artico procedural | Completada |
+| 7B | Shader de agua (vertex displacement + Fresnel) | Completada |
+| 8 | Nieve billboards + fauna decorativa | Completada |
+| 9 | UI ImGui + letreros 3D + miniaudio | Completada |
+| 10 | Integracion narrativa (titulo/cierre) | Completada |
+| 11 | QA rendimiento (59-61 FPS) | Completada |
+| Assets | Texturas CC0 + modelos Quaternius/Kenney/KhronosGroup | Completada |
+| QA Visual | Verificacion escena por escena con screenshots | Completada |

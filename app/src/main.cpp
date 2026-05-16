@@ -459,9 +459,10 @@ int main(int argc, char** argv) {
             waterShader.setFloat("waveSpeed",  0.9f);
             waterShader.setFloat("waveFreq",   0.35f);
             waterShader.setFloat("time",       totalTime);
-            // Model: centrado en (0, -0.3, 35) para rodear el museo
+            // Model: centrado en (0, -0.6, 35) — suficientemente bajo para que
+            // las olas (max +0.34) nunca superen el suelo (Y=0)
             glm::mat4 waterModel = glm::translate(glm::mat4(1.0f),
-                                       glm::vec3(0.0f, -0.3f, 35.0f));
+                                       glm::vec3(0.0f, -0.6f, 35.0f));
             waterShader.setMat4("model", waterModel);
             waterMesh.draw();
 

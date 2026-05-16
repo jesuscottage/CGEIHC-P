@@ -108,6 +108,10 @@ public:
 
     // Render: suelo, techo, paredes, plataformas
     void draw(Shader& shader, const glm::vec3& viewPos) {
+        // Suelo y techo: desactivar culling para que se vean desde ambos lados
+        // (evita problemas de winding order en planos horizontales grandes)
+        glDisable(GL_CULL_FACE);
+
         // Suelo — textura de concreto si disponible
         {
             shader.setMat4("model", glm::mat4(1.0f));
@@ -130,6 +134,9 @@ public:
             shader.setVec3("baseColor", glm::vec3(0.55f, 0.62f, 0.70f));
             ceilingMesh.draw();
         }
+
+        // Re-activar culling para paredes y el resto
+        glEnable(GL_CULL_FACE);
 
         // Paredes — textura de concreto claro si disponible
         for (const auto& w : walls) {
