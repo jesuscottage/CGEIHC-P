@@ -1,0 +1,306 @@
+#pragma once
+// ModuleScene.h — Fase 5: geometría animada por módulo (placeholder geometry)
+// Cada módulo tiene su propia escena 3D que anima con animT (0→1).
+// Los modelos reales (GLTF/OBJ) se integrarán en Fases posteriores;
+// por ahora se usa geometría procedural (cubos, discos, conos de discos).
+
+#include "graphics/Mesh.h"
+#include "graphics/Shader.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/constants.hpp>
+#include <string>
+#include <cmath>
+
+class ModuleScene {
+public:
+    void init() {
+        mCube = makeCube();
+        mDisc = makeDisc(1.0f, 24, 0.08f);
+    }
+
+    // Dibuja la escena de un módulo.
+    // id:     "M1_IZQ", "M2_IZQ", etc.
+    // center: posición central del módulo (Y=0)
+    // animT:  progreso de la animación [0,1]
+    // time:   glfwGetTime() — para rotaciones y ciclos continuos
+    void draw(Shader& sh, const std::string& id, const glm::vec3& center,
+              float animT, float time)
+    {
+        if      (id == "M1_IZQ") drawIceberg    (sh, center, animT);
+        else if (id == "M2_IZQ") drawIceFloe    (sh, center, animT);
+        else if (id == "M3_IZQ") drawFlood      (sh, center, animT);
+        else if (id == "M1_DER") drawTurbine    (sh, center, animT, time);
+        else if (id == "M2_DER") drawElectricCar(sh, center, animT, time);
+        else if (id == "M3_DER") drawTree       (sh, center, animT);
+        else if (id == "M5")     drawGlobe      (sh, center, animT, time);
+    }
+
+    void free() { mCube.free(); mDisc.free(); }
+
+private:
+    Mesh mCube, mDisc;
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    void col(Shader& sh, const glm::vec3& c) {
+        sh.setBool("useTexture", false);
+        sh.setVec3("baseColor", c);
+    }
+    void mdl(Shader& sh, const glm::mat4& m) { sh.setMat4("model", m); }
+
+    glm::mat4 T(glm::vec3 t) {
+        return glm::translate(glm::mat4(1.f), t);
+    }
+    glm::mat4 TS(glm::vec3 t, glm::vec3 s) {
+        return glm::scale(glm::translate(glm::mat4(1.f), t), s);
+    }
+    glm::mat4 TRS(glm::vec3 t, float deg, glm::vec3 ax, glm::vec3 s) {
+        auto m = glm::translate(glm::mat4(1.f), t);
+        m = glm::rotate(m, glm::radians(deg), glm::normalize(ax));
+        return glm::scale(m, s);
+    }
+
+    // ── M1_IZQ: Iceberg derritiéndose ──────────────────────────────────────
+    // animT=0: iceberg grande e imponente
+    // animT=1: casi desaparecido
+    void drawIceberg(Shader& sh, glm::vec3 c, float t) {
+        float sx = glm::mix(2.2f, 0.4f, t);
+        float sy = glm::mix(3.5f, 0.2f, t);
+        glm::vec3 iceCol = glm::mix(
+            glm::vec3(0.78f, 0.92f, 1.00f),
+            glm::vec3(0.35f, 0.60f, 0.82f), t);
+
+        // Bloque principal del iceberg
+        col(sh, iceCol);
+        mdl(sh, TS({c.x, c.y + sy * 0.5f, c.z}, {sx, sy, sx * 0.85f}));
+        mCube.draw();
+
+        // Arista secundaria (más ancha y baja, parcialmente sumergida)
+        col(sh, iceCol * 0.78f);
+        mdl(sh, TS({c.x + 0.4f, c.y + 0.06f, c.z - 0.2f}, {sx * 1.6f, 0.13f, sx * 1.6f}));
+        mCube.draw();
+
+        // Trozo lateral flotante (aparece sólo antes de la mitad)
+        if (t < 0.55f) {
+            float lt = 1.0f - t / 0.55f;
+            col(sh, iceCol * lt);
+            mdl(sh, TS({c.x + sx * 0.9f, c.y + 0.3f * lt, c.z + 0.5f},
+                        {sx * 0.4f * lt, 0.6f * lt, sx * 0.4f * lt}));
+            mCube.draw();
+        }
+    }
+
+    // ── M2_IZQ: Capa de hielo que encoge + oso polar encima ───────────────
+    // animT=0: gran capa de hielo con oso estable
+    // animT=1: capa casi inexistente, oso "perdido"
+    void drawIceFloe(Shader& sh, glm::vec3 c, float t) {
+        float iceR = glm::mix(4.8f, 0.25f, t);
+
+        // Disco de hielo
+        col(sh, glm::vec3(0.88f, 0.95f, 1.0f));
+        glm::mat4 dm = glm::scale(T({c.x, c.y + 0.08f, c.z}), {iceR, 1.f, iceR});
+        mdl(sh, dm);
+        mDisc.draw();
+
+        // Oso polar — cuerpo (siempre visible)
+        col(sh, glm::vec3(0.96f, 0.97f, 1.00f));
+        mdl(sh, TS({c.x, c.y + 0.55f, c.z}, {0.5f, 0.55f, 0.75f}));
+        mCube.draw();
+
+        // Cabeza
+        col(sh, glm::vec3(1.0f, 1.0f, 1.0f));
+        mdl(sh, TS({c.x, c.y + 1.02f, c.z + 0.32f}, {0.28f, 0.28f, 0.28f}));
+        mCube.draw();
+
+        // Patas delanteras
+        col(sh, glm::vec3(0.94f, 0.96f, 1.0f));
+        mdl(sh, TS({c.x - 0.28f, c.y + 0.18f, c.z + 0.3f}, {0.12f, 0.35f, 0.15f}));
+        mCube.draw();
+        mdl(sh, TS({c.x + 0.28f, c.y + 0.18f, c.z + 0.3f}, {0.12f, 0.35f, 0.15f}));
+        mCube.draw();
+    }
+
+    // ── M3_IZQ: Edificios que se inundan ──────────────────────────────────
+    // animT=0: ciudad normal, sin agua
+    // animT=1: edificios casi cubiertos
+    void drawFlood(Shader& sh, glm::vec3 c, float t) {
+        float waterY = glm::mix(-0.6f, 3.2f, t);
+
+        struct Bld { float ox, oz, h, w; };
+        Bld blds[] = {
+            {-1.4f, -0.6f, 3.8f, 0.9f},
+            { 0.2f,  0.7f, 2.2f, 0.8f},
+            { 1.5f, -0.2f, 5.0f, 0.75f},
+        };
+        glm::vec3 bldCol{0.62f, 0.56f, 0.50f};
+
+        for (auto& b : blds) {
+            // Edificio
+            col(sh, bldCol);
+            mdl(sh, TS({c.x + b.ox, c.y + b.h * 0.5f, c.z + b.oz}, {b.w, b.h, b.w}));
+            mCube.draw();
+            // Hilera de ventanas encendidas
+            col(sh, glm::vec3(0.95f, 0.85f, 0.4f));
+            mdl(sh, TS({c.x + b.ox, c.y + b.h - 0.35f, c.z + b.oz + b.w * 0.51f},
+                        {b.w * 0.65f, 0.09f, 0.04f}));
+            mCube.draw();
+        }
+
+        // Plano de agua
+        if (waterY > -0.5f) {
+            col(sh, glm::vec3(0.14f, 0.38f, 0.80f));
+            mdl(sh, TS({c.x, c.y + waterY, c.z}, {7.0f, 0.16f, 7.0f}));
+            mCube.draw();
+        }
+    }
+
+    // ── M1_DER: Turbina eólica que acelera ────────────────────────────────
+    // animT=0: turbina parada
+    // animT=1: girando a 120°/s
+    void drawTurbine(Shader& sh, glm::vec3 c, float t, float time) {
+        // Poste
+        col(sh, glm::vec3(0.82f, 0.83f, 0.85f));
+        mdl(sh, TS({c.x, c.y + 2.6f, c.z}, {0.18f, 5.2f, 0.18f}));
+        mCube.draw();
+
+        // Góndola
+        col(sh, glm::vec3(0.86f, 0.86f, 0.88f));
+        mdl(sh, TS({c.x, c.y + 5.3f, c.z - 0.1f}, {0.42f, 0.32f, 0.65f}));
+        mCube.draw();
+
+        // 3 palas — velocidad angular lerp 0→120°/s
+        float speed = glm::mix(0.0f, 120.0f, t);
+        float angle = speed * time; // ángulo acumulado
+
+        glm::vec3 bladeCol{0.92f, 0.93f, 0.96f};
+        for (int i = 0; i < 3; i++) {
+            float a = angle + i * 120.0f;
+            // Eje de rotación: Z (pala vista desde el frente -Z del jugador)
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 5.1f, c.z - 0.38f});
+            m = glm::rotate(m, glm::radians(a), {0.f, 0.f, 1.f});
+            m = glm::translate(m, {0.f, 1.5f, 0.f});   // offset desde centro del rotor
+            m = glm::scale(m, {0.11f, 2.8f, 0.05f});
+            col(sh, bladeCol);
+            mdl(sh, m);
+            mCube.draw();
+        }
+    }
+
+    // ── M2_DER: Auto eléctrico que circula y se ilumina ───────────────────
+    // animT=0: auto apagado, quieto
+    // animT=1: auto luminoso, moviéndose
+    void drawElectricCar(Shader& sh, glm::vec3 c, float t, float time) {
+        // Movimiento sinusoidal (solo cuando t > 0)
+        float zOff = sinf(time * glm::pi<float>() / 3.0f) * 2.4f * t;
+
+        // Color: gris metálico → azul eléctrico vivo
+        glm::vec3 carCol = glm::mix(
+            glm::vec3(0.28f, 0.32f, 0.38f),
+            glm::vec3(0.10f, 0.50f, 1.00f), t);
+
+        // Carrocería
+        col(sh, carCol);
+        mdl(sh, TS({c.x, c.y + 0.46f, c.z + zOff}, {1.35f, 0.58f, 2.5f}));
+        mCube.draw();
+
+        // Techo / cabina
+        col(sh, carCol * 0.88f);
+        mdl(sh, TS({c.x, c.y + 0.98f, c.z + zOff + 0.15f}, {1.05f, 0.42f, 1.4f}));
+        mCube.draw();
+
+        // Ruedas (4 discos)
+        col(sh, glm::vec3(0.10f, 0.10f, 0.12f));
+        float wx[] = {-0.78f,  0.78f, -0.78f,  0.78f};
+        float wz[] = {-0.88f, -0.88f,  0.88f,  0.88f};
+        for (int i = 0; i < 4; i++) {
+            glm::mat4 wm = glm::translate(glm::mat4(1.f),
+                {c.x + wx[i], c.y + 0.18f, c.z + zOff + wz[i]});
+            wm = glm::rotate(wm, glm::radians(90.f), {1.f, 0.f, 0.f});
+            wm = glm::scale(wm, {0.34f, 0.34f, 0.18f});
+            mdl(sh, wm);
+            mDisc.draw();
+        }
+
+        // Faros: pequeños cubos brillantes al frente
+        glm::vec3 headlightCol = glm::mix(
+            glm::vec3(0.3f, 0.3f, 0.3f),
+            glm::vec3(1.0f, 0.95f, 0.7f), t);
+        col(sh, headlightCol);
+        mdl(sh, TS({c.x - 0.4f, c.y + 0.52f, c.z + zOff + 1.27f}, {0.18f, 0.12f, 0.06f}));
+        mCube.draw();
+        mdl(sh, TS({c.x + 0.4f, c.y + 0.52f, c.z + zOff + 1.27f}, {0.18f, 0.12f, 0.06f}));
+        mCube.draw();
+    }
+
+    // ── M3_DER: Árbol que crece desde el suelo ────────────────────────────
+    // animT=0: semilla (apenas visible)
+    // animT=1: árbol frondoso completo
+    void drawTree(Shader& sh, glm::vec3 c, float t) {
+        float s = glm::mix(0.02f, 1.0f, t); // factor de escala global
+
+        // Tronco
+        col(sh, glm::vec3(0.42f, 0.28f, 0.13f));
+        mdl(sh, TS({c.x, c.y + 1.7f * s, c.z}, {0.24f * s, 3.4f * s, 0.24f * s}));
+        mCube.draw();
+
+        // Copa: 3 capas de discos (la de abajo es la más ancha)
+        float layH[] = {3.6f, 2.7f, 1.9f};
+        float layR[] = {1.2f, 1.7f, 2.2f};
+        for (int i = 0; i < 3; i++) {
+            float shade = 1.0f - i * 0.07f;
+            col(sh, glm::vec3(0.18f, 0.65f, 0.22f) * shade);
+            glm::mat4 m = glm::scale(T({c.x, c.y + layH[i] * s, c.z}),
+                                      {layR[i] * s, 1.f, layR[i] * s});
+            mdl(sh, m);
+            mDisc.draw();
+        }
+    }
+
+    // ── M5: Globo terráqueo girando + líneas de acuerdos ──────────────────
+    // Rotación siempre activa; líneas aparecen secuencialmente con animT
+    void drawGlobe(Shader& sh, glm::vec3 c, float t, float time) {
+        float rot = time * 18.0f; // 18°/s constante
+
+        // Océano
+        col(sh, glm::vec3(0.18f, 0.48f, 0.82f));
+        glm::mat4 gm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
+                                    glm::radians(rot), {0.f, 1.f, 0.f});
+        gm = glm::scale(gm, {2.6f, 2.6f, 2.6f});
+        mdl(sh, gm);
+        mCube.draw();
+
+        // Continentes (capa superpuesta verde)
+        col(sh, glm::vec3(0.25f, 0.60f, 0.26f));
+        glm::mat4 cm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
+                                    glm::radians(rot + 55.f), {0.f, 1.f, 0.f});
+        cm = glm::scale(cm, {2.66f, 1.2f, 1.5f});
+        mdl(sh, cm);
+        mCube.draw();
+
+        // Líneas de acuerdos: discos que aparecen uno a uno con animT
+        if (t > 0.05f) {
+            const int nLines = 6;
+            for (int i = 0; i < nLines; i++) {
+                float window  = 1.0f / nLines;
+                float lineT   = glm::clamp((t - i * window) / window, 0.f, 1.f);
+                if (lineT < 0.01f) continue;
+
+                float a = i * (360.f / nLines) + rot * 0.28f;
+                float r = 4.2f;
+                glm::vec3 lCol = glm::mix(
+                    glm::vec3(1.0f, 0.85f, 0.1f),
+                    glm::vec3(1.0f, 0.40f, 0.0f),
+                    (float)i / (nLines - 1));
+
+                col(sh, lCol * lineT);
+                glm::mat4 lm = T({c.x + cosf(glm::radians(a)) * r,
+                                   c.y + 1.5f + i * 0.3f,
+                                   c.z + sinf(glm::radians(a)) * r});
+                lm = glm::rotate(lm, glm::radians(90.f), {1.f, 0.f, 0.f});
+                lm = glm::scale(lm, {lineT * 0.75f, lineT * 0.75f, 0.04f});
+                mdl(sh, lm);
+                mDisc.draw();
+            }
+        }
+    }
+};

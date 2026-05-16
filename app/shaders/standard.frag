@@ -29,11 +29,14 @@ void main() {
     vec3 viewDir  = normalize(viewPos - FragPos);
     vec3 halfDir  = normalize(ldir + viewDir);
 
-    float ambient  = 0.25;
+    float ambient  = 0.35;
+    // Luz de rebote del suelo ártico: superficies que miran hacia abajo
+    // reciben luminosidad reflejada del hielo
+    float bounce   = 0.18 * max(dot(norm, vec3(0.0, -1.0, 0.0)), 0.0);
     float diff     = max(dot(norm, ldir), 0.0);
     float spec     = pow(max(dot(norm, halfDir), 0.0), 32.0);
 
-    vec3 color = albedo * (ambient + diff * lightColor)
+    vec3 color = albedo * ((ambient + bounce) + diff * lightColor)
                + lightColor * spec * 0.3;
 
     // ── Niebla exponencial cuadrática ──────────────

@@ -1,4 +1,4 @@
-// main.cpp — Fase 4: Layout del museo + cámara FPS + render Blinn-Phong básico
+// main.cpp — Fase 5: Animaciones LERP en módulos interactivos
 
 #include "glad/glad.h"
 #include "core/Window.h"
@@ -10,6 +10,7 @@
 #include "graphics/Texture.h"
 #include "graphics/Model.h"
 #include "scene/Museum.h"
+#include "scene/ModuleScene.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -50,14 +51,16 @@ struct TestConfig {
     int  activateAtFrame      = 60;
 };
 
+// Posiciones de cámara para test mode: 3.5m al sur del centro de cada módulo
+// para que el objeto sea visible y la cámara esté dentro del trigger (radio 5m)
 static const std::map<std::string, glm::vec3> MODULE_POSITIONS = {
-    {"M1_IZQ", {-12.0f, 1.7f, 13.0f}},
-    {"M2_IZQ", {-12.0f, 1.7f, 28.0f}},
-    {"M3_IZQ", {-12.0f, 1.7f, 43.0f}},
-    {"M1_DER", { 12.0f, 1.7f, 13.0f}},
-    {"M2_DER", { 12.0f, 1.7f, 28.0f}},
-    {"M3_DER", { 12.0f, 1.7f, 43.0f}},
-    {"M5",     {  0.0f, 1.7f, 63.0f}},
+    {"M1_IZQ", {-12.0f, 1.7f,  9.5f}},
+    {"M2_IZQ", {-12.0f, 1.7f, 24.5f}},
+    {"M3_IZQ", {-12.0f, 1.7f, 39.5f}},
+    {"M1_DER", { 12.0f, 1.7f,  9.5f}},
+    {"M2_DER", { 12.0f, 1.7f, 24.5f}},
+    {"M3_DER", { 12.0f, 1.7f, 39.5f}},
+    {"M5",     {  0.0f, 1.7f, 59.5f}},
 };
 
 TestConfig parseArgs(int argc, char** argv) {
@@ -135,6 +138,10 @@ int main(int argc, char** argv) {
     Museum museum;
     museum.init();
 
+    // ── Escenas animadas de módulos ────────────
+    ModuleScene moduleScene;
+    moduleScene.init();
+
     // ── Texturas placeholder ───────────────────
     Texture whiteTex;
     whiteTex.loadWhite();
@@ -145,7 +152,9 @@ int main(int argc, char** argv) {
     const glm::vec3 FOG_COLOR   = glm::vec3(0.65f, 0.75f, 0.85f);
     const float     FOG_DENSITY = 0.012f;
 
-    AppState state     = AppState::TITULO;
+    // En test mode se salta la pantalla de título para que las activaciones
+    // de módulos por frame ocurran desde el frame 0 en estado JUGANDO
+    AppState state     = testCfg.enabled ? AppState::JUGANDO : AppState::TITULO;
     double   titleTimer = glfwGetTime();
 
     int    frameCount = 0;
@@ -200,8 +209,10 @@ int main(int argc, char** argv) {
                     activeModulePtr = near;
                 }
                 // Test mode: simular E en el frame configurado
-                if (testCfg.enabled && frameCount == testCfg.activateAtFrame && near)
+                if (testCfg.enabled && frameCount == testCfg.activateAtFrame && near) {
                     near->activate();
+                    activeModulePtr = near;
+                }
 
                 // Actualizar estado para JSON/ImGui
                 if (activeModulePtr) {
@@ -266,19 +277,10 @@ int main(int argc, char** argv) {
             // Render del museo (suelo, techo, paredes, plataformas)
             museum.draw(stdShader, camera.position);
 
-            // Indicadores visuales de módulos activos (cubo pequeño de color)
+            // Escenas animadas de los módulos interactivos
+            float totalTime = (float)glfwGetTime();
             for (const auto& mod : museum.modules) {
-                if (mod.animActive && mod.animT > 0.0f) {
-                    float s = glm::mix(0.3f, 1.0f, mod.animT);
-                    glm::mat4 mMat = glm::translate(glm::mat4(1.0f),
-                        glm::vec3(mod.center.x, 1.5f + mod.animT * 2.0f, mod.center.z));
-                    mMat = glm::scale(mMat, glm::vec3(s));
-                    static Mesh indicatorCube = makeCube();
-                    stdShader.setMat4("model",     mMat);
-                    stdShader.setBool("useTexture", false);
-                    stdShader.setVec3("baseColor",  mod.labelColor);
-                    indicatorCube.draw();
-                }
+                moduleScene.draw(stdShader, mod.id, mod.center, mod.animT, totalTime);
             }
         }
 
@@ -311,6 +313,7 @@ int main(int argc, char** argv) {
     }
 
     museum.free();
+    moduleScene.free();
     whiteTex.free();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
