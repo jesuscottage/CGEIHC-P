@@ -151,8 +151,8 @@ private:
     // animT=0: iceberg grande e imponente
     // animT=1: casi desaparecido
     void drawIceberg(Shader& sh, glm::vec3 c, float t) {
-        float sx = glm::mix(2.2f, 0.4f, t);
-        float sy = glm::mix(3.5f, 0.2f, t);
+        float sx = glm::mix(3.5f, 0.5f, t);
+        float sy = glm::mix(2.8f, 0.2f, t);
         glm::vec3 iceCol = glm::mix(
             glm::vec3(0.78f, 0.92f, 1.00f),
             glm::vec3(0.35f, 0.60f, 0.82f), t);
@@ -214,13 +214,13 @@ private:
         float waterY = glm::mix(-0.6f, 3.2f, t);
 
         if (mBuildingA.loaded) {
-            // Usar modelos reales de edificios
-            float offsets[][2] = {{-1.4f, -0.6f}, {0.2f, 0.7f}, {1.5f, -0.2f}};
+            // Usar modelos reales de edificios (Kenney ~4-6 unidades alto, escalar a ~3-5m)
+            float offsets[][2] = {{-2.0f, -1.0f}, {0.5f, 1.0f}, {2.5f, -0.5f}};
             Model* bldModels[] = {&mBuildingA, &mBuildingB, &mBuildingC};
             for (int i = 0; i < 3; i++) {
                 glm::mat4 m = glm::translate(glm::mat4(1.f),
                     {c.x + offsets[i][0], c.y, c.z + offsets[i][1]});
-                m = glm::scale(m, glm::vec3(1.5f));
+                m = glm::scale(m, glm::vec3(0.55f));
                 mdl(sh, m);
                 bldModels[i]->draw(sh);
             }
@@ -256,28 +256,27 @@ private:
     // animT=0: turbina parada
     // animT=1: girando a 120°/s
     void drawTurbine(Shader& sh, glm::vec3 c, float t, float time) {
-        // Poste
+        // Poste — alto y visible
         col(sh, glm::vec3(0.82f, 0.83f, 0.85f));
-        mdl(sh, TS({c.x, c.y + 2.6f, c.z}, {0.18f, 5.2f, 0.18f}));
+        mdl(sh, TS({c.x, c.y + 3.0f, c.z}, {0.30f, 6.0f, 0.30f}));
         mCube.draw();
 
         // Góndola
         col(sh, glm::vec3(0.86f, 0.86f, 0.88f));
-        mdl(sh, TS({c.x, c.y + 5.3f, c.z - 0.1f}, {0.42f, 0.32f, 0.65f}));
+        mdl(sh, TS({c.x, c.y + 6.1f, c.z - 0.15f}, {0.55f, 0.40f, 0.80f}));
         mCube.draw();
 
-        // 3 palas — velocidad angular lerp 0→120°/s
+        // 3 palas — más gruesas y largas para que sean visibles
         float speed = glm::mix(0.0f, 120.0f, t);
-        float angle = speed * time; // ángulo acumulado
+        float angle = speed * time;
 
         glm::vec3 bladeCol{0.92f, 0.93f, 0.96f};
         for (int i = 0; i < 3; i++) {
             float a = angle + i * 120.0f;
-            // Eje de rotación: Z (pala vista desde el frente -Z del jugador)
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 5.1f, c.z - 0.38f});
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 5.9f, c.z - 0.50f});
             m = glm::rotate(m, glm::radians(a), {0.f, 0.f, 1.f});
-            m = glm::translate(m, {0.f, 1.5f, 0.f});   // offset desde centro del rotor
-            m = glm::scale(m, {0.11f, 2.8f, 0.05f});
+            m = glm::translate(m, {0.f, 1.8f, 0.f});
+            m = glm::scale(m, {0.18f, 3.4f, 0.08f});
             col(sh, bladeCol);
             mdl(sh, m);
             mCube.draw();
@@ -292,8 +291,10 @@ private:
         float zOff = sinf(time * glm::pi<float>() / 3.0f) * 2.4f * t;
 
         if (mCarModel.loaded) {
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z + zOff});
-            m = glm::scale(m, glm::vec3(2.0f)); // Kenney cars son ~1 unidad
+            // Kenney sedan-sports: ~2 unidades largo, 0.7 alto. Escalar a ~3m largo
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z + zOff});
+            m = glm::rotate(m, glm::radians(90.f), {0.f, 1.f, 0.f}); // orientar hacia la cámara
+            m = glm::scale(m, glm::vec3(1.5f));
             mdl(sh, m);
             mCarModel.draw(sh);
             return;
@@ -376,13 +377,8 @@ private:
     void drawGlobe(Shader& sh, glm::vec3 c, float t, float time) {
         float rot = time * 18.0f; // 18°/s constante
 
-        if (mGlobeModel.loaded) {
-            glm::mat4 gm = glm::translate(glm::mat4(1.f), {c.x, c.y + 3.2f, c.z});
-            gm = glm::rotate(gm, glm::radians(rot), {0.f, 1.f, 0.f});
-            gm = glm::scale(gm, glm::vec3(2.5f));
-            mdl(sh, gm);
-            mGlobeModel.draw(sh);
-        } else {
+        // Siempre usar procedural — el modelo CarbonFibre usa PBR iridiscente incompatible
+        {
             // Fallback: cubos como globo
             col(sh, glm::vec3(0.18f, 0.48f, 0.82f));
             glm::mat4 gm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
