@@ -522,19 +522,19 @@ Durante las fases 1-11, si se encuentra un fragmento de código especialmente ú
 > **Este mapa se llena durante la Fase 0B.** Claude actualiza cada fila con las entradas R-NN del catálogo encontradas para esa fase.
 > Cuando estés en una fase, consulta aquí antes de implementar cualquier tarea compleja.
 
-| Fase | Categoría principal | Referencias (llenar en Fase 0B) |
+| Fase | Categoría principal | Referencias (Fase 0B completada) |
 |------|--------------------|---------------------------------|
-| Fase 1 — Motor Core | OpenGL general, Camera FPS | — |
-| Fase 2 — Render básico | Shader/Mesh/Texture, Dear ImGui debug | — |
-| Fase 3 — Assimp | Assimp GLTF C++ | — |
-| Fase 4 — Layout museo | Recorrido FPS interior, AABB colisiones | — |
-| Fase 5 — Módulos | Animaciones LERP keyframe, trigger de proximidad | — |
-| Fase 6 — Blinn-Phong | Iluminación Blinn-Phong, Fresnel | — |
-| Fase 7A — Skybox | Skybox cubemap, niebla exponencial | — |
-| Fase 7B — Agua | Shader agua vertex displacement, Fresnel | — |
-| Fase 8 — Efectos | Partículas billboard, nieve, fauna | — |
-| Fase 9 — UI/Audio | ImGui HUD, stb_truetype glifos, miniaudio 3D | — |
-| Fase 10 — Integración | AppState, flujo narrativo completo | — |
+| Fase 1 — Motor Core | OpenGL general, Camera FPS | R-01 (LearnOpenGL Camera.h), R-02 |
+| Fase 2 — Render básico | Shader/Mesh/Texture, Dear ImGui debug | R-01 (Shader.h, Mesh.h), R-80, R-81 |
+| Fase 3 — Assimp | Assimp GLTF C++ | R-70, R-71 |
+| Fase 4 — Layout museo | Recorrido FPS interior, AABB colisiones | R-110, R-111 |
+| Fase 5 — Módulos | Animaciones LERP keyframe, trigger de proximidad | R-60, R-61 |
+| Fase 6 — Blinn-Phong | Iluminación Blinn-Phong, Fresnel | R-10, R-11 |
+| Fase 7A — Skybox | Skybox cubemap, niebla exponencial | R-30, R-31, R-40, R-41 |
+| Fase 7B — Agua | Shader agua vertex displacement, Fresnel | R-20, R-21, R-10 |
+| Fase 8 — Efectos | Partículas billboard, nieve, fauna | R-50, R-51 |
+| Fase 9 — UI/Audio | ImGui HUD, stb_truetype glifos, miniaudio 3D | R-80, R-90, R-91, R-100, R-101 |
+| Fase 10 — Integración | AppState, flujo narrativo completo | todas las anteriores |
 | Fase 11 — QA | RenderDoc leaks, Release packaging | — |
 
 ---

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(CGEIHC_TEST VERSION 1.0 LANGUAGES CXX)
+project(CGEIHC VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -40,9 +40,16 @@ FetchContent_Declare(imgui
 
 FetchContent_MakeAvailable(glfw glm assimp imgui)
 
-# ACTIVE_DIR
+# ACTIVE_DIR — ruta absoluta a active/ en la raiz del repositorio
 get_filename_component(REPO_ROOT "${CMAKE_SOURCE_DIR}/.." ABSOLUTE)
 
+# Fuentes del proyecto (GLOB recoge todos los .cpp en src/)
+file(GLOB_RECURSE SOURCES "src/*.cpp")
+
+# Fuentes de GLAD (no entra en el GLOB porque esta en vendor/src/)
+list(APPEND SOURCES src/vendor/src/glad.c)
+
+# Fuentes de ImGui backend
 set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -52,32 +59,44 @@ set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-add_executable(CGEIHC_TEST
-    src/main_test.cpp
-    src/stb_impl.cpp
-    src/miniaudio_impl.cpp
-    src/vendor/src/glad.c
-    ${IMGUI_SOURCES}
-)
+add_executable(CGEIHC ${SOURCES} ${IMGUI_SOURCES})
 
-target_include_directories(CGEIHC_TEST PRIVATE
+target_include_directories(CGEIHC PRIVATE
+    src/
     src/vendor/include
     src/vendor
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
 )
 
-target_compile_definitions(CGEIHC_TEST PRIVATE
+target_compile_definitions(CGEIHC PRIVATE
     ACTIVE_DIR="${REPO_ROOT}/active/"
+    SHADERS_DIR="${CMAKE_SOURCE_DIR}/shaders/"
+    ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets/"
 )
 
-target_link_libraries(CGEIHC_TEST PRIVATE glfw glm::glm assimp)
+target_link_libraries(CGEIHC PRIVATE glfw glm::glm assimp)
 
-add_custom_command(TARGET CGEIHC_TEST POST_BUILD
+# Crear directorio active/ si no existe
+add_custom_command(TARGET CGEIHC POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${REPO_ROOT}/active"
 )
-add_custom_command(TARGET CGEIHC_TEST POST_BUILD
+
+# Copiar DLL de Assimp junto al exe (Release genera DLL; Debug es estatico)
+add_custom_command(TARGET CGEIHC POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:assimp>
-        $<TARGET_FILE_DIR:CGEIHC_TEST>
+        $<TARGET_FILE_DIR:CGEIHC>
+)
+
+# Copiar assets/ y shaders/ junto al exe
+add_custom_command(TARGET CGEIHC POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/assets
+        $<TARGET_FILE_DIR:CGEIHC>/assets
+)
+add_custom_command(TARGET CGEIHC POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:CGEIHC>/shaders
 )
