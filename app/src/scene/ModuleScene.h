@@ -29,10 +29,11 @@ public:
         mBuildingC.load(ASSETS_DIR "models/building_c.glb");
         mGlobeModel.load(ASSETS_DIR "models/globe.glb");
         mIcebergModel.load(ASSETS_DIR "models/iceberg.glb");
-        mBearModel.load(ASSETS_DIR "models/polar_bear.glb");
+        mBearModel.load(ASSETS_DIR "models/polar_bear.glb"); // Quaternius Wolf CC0
         // Fauna
-        mFoxModel.load(ASSETS_DIR "models/fox.glb");
-        mBirdModel.load(ASSETS_DIR "models/seagull.glb");
+        mFoxModel.load(ASSETS_DIR "models/fox.glb");       // KhronosGroup Fox
+        mBirdModel.load(ASSETS_DIR "models/seagull.glb");   // three.js Stork
+        mSealModel.load(ASSETS_DIR "models/seal.glb");      // Quaternius Husky CC0
     }
 
     // Dibuja la escena de un módulo.
@@ -57,7 +58,7 @@ public:
         mTreeModel.free(); mCarModel.free();
         mBuildingA.free(); mBuildingB.free(); mBuildingC.free();
         mGlobeModel.free(); mIcebergModel.free(); mBearModel.free();
-        mFoxModel.free(); mBirdModel.free();
+        mFoxModel.free(); mBirdModel.free(); mSealModel.free();
     }
 
     // ── Fauna decorativa estática ──────────────────────────────────────────
@@ -74,24 +75,33 @@ public:
             drawArcticFox(sh, {-17.5f, 0.0f, 5.5f});
         }
 
-        // Gaviota/pato (modelo Duck de KhronosGroup)
+        // Gaviota (three.js Stork — cigüeña blanca volando)
         if (mBirdModel.loaded) {
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {-8.0f, 0.0f, 31.0f});
-            m = glm::scale(m, glm::vec3(0.012f)); // Duck es ~150 unidades
+            glm::vec3 white(0.92f, 0.94f, 0.98f);
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {-8.0f, 3.5f, 31.0f});
+            m = glm::scale(m, glm::vec3(0.015f)); // Stork es ~100 unidades
             mdl(sh, m);
-            mBirdModel.draw(sh);
+            mBirdModel.draw(sh, &white);
         } else {
             drawSeagull(sh, {-8.0f, 3.8f, 31.0f});
         }
 
-        // Foca (usa procedural — no encontramos modelo CC0)
-        drawSeal(sh, {-15.0f, 0.0f, 25.0f});
+        // Foca (Quaternius Husky como animal ártico)
+        if (mSealModel.loaded) {
+            glm::vec3 gray(0.75f, 0.78f, 0.82f);
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {-15.0f, 0.0f, 25.0f});
+            m = glm::scale(m, glm::vec3(10.0f)); // Quaternius Husky ~0.08m nativo
+            mdl(sh, m);
+            mSealModel.draw(sh, &gray);
+        } else {
+            drawSeal(sh, {-15.0f, 0.0f, 25.0f});
+        }
     }
 
 private:
     Mesh mCube, mDisc;
     Model mTreeModel, mCarModel, mBuildingA, mBuildingB, mBuildingC, mGlobeModel;
-    Model mIcebergModel, mBearModel, mFoxModel, mBirdModel;
+    Model mIcebergModel, mBearModel, mFoxModel, mBirdModel, mSealModel;
 
     // ── Fauna helpers ──────────────────────────────────────────────────────
     void drawSeal(Shader& sh, glm::vec3 pos) {
@@ -226,13 +236,13 @@ private:
         mdl(sh, dm);
         mDisc.draw();
 
-        // Oso polar: usar Fox model con color blanco (wolf tiene skeletal anim incompatible)
-        if (mFoxModel.loaded) {
-            glm::vec3 white(0.95f, 0.97f, 1.0f);
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z + 0.3f});
-            m = glm::scale(m, glm::vec3(0.02f)); // Fox es ~100 unidades, escalar a ~2m
+        // Oso polar (Quaternius Wolf CC0 — blanco crema para contraste con hielo)
+        if (mBearModel.loaded) {
+            glm::vec3 cream(0.90f, 0.88f, 0.82f); // crema cálido, distinto del hielo azulado
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.3f, c.z + 1.0f});
+            m = glm::scale(m, glm::vec3(25.0f)); // bien grande para que se vea desde la cámara
             mdl(sh, m);
-            mFoxModel.draw(sh, &white);
+            mBearModel.draw(sh, &cream);
         } else {
             // Fallback procedural
             col(sh, glm::vec3(0.96f, 0.97f, 1.00f));
