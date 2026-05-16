@@ -1,4 +1,4 @@
-// main.cpp — Fase 5: Animaciones LERP en módulos interactivos
+// main.cpp — Fase 7A: Skybox cubemap ártico procedural
 
 #include "glad/glad.h"
 #include "core/Window.h"
@@ -9,6 +9,7 @@
 #include "graphics/Mesh.h"
 #include "graphics/Texture.h"
 #include "graphics/Model.h"
+#include "graphics/Skybox.h"
 #include "scene/Museum.h"
 #include "scene/ModuleScene.h"
 
@@ -130,9 +131,10 @@ int main(int argc, char** argv) {
     ImGui_ImplOpenGL3_Init("#version 330");
 
     // ── Shaders ───────────────────────────────
-    Shader stdShader, unlitShader;
+    Shader stdShader, unlitShader, skyboxShader;
     if (!stdShader.load(SHADERS_DIR "standard.vert", SHADERS_DIR "standard.frag")) return -1;
     if (!unlitShader.load(SHADERS_DIR "unlit.vert",  SHADERS_DIR "unlit.frag"))    return -1;
+    if (!skyboxShader.load(SHADERS_DIR "skybox.vert", SHADERS_DIR "skybox.frag"))  return -1;
 
     // ── Museo ─────────────────────────────────
     Museum museum;
@@ -141,6 +143,10 @@ int main(int argc, char** argv) {
     // ── Escenas animadas de módulos ────────────
     ModuleScene moduleScene;
     moduleScene.init();
+
+    // ── Skybox ártico ─────────────────────────
+    Skybox skybox;
+    skybox.init();
 
     // ── Texturas placeholder ───────────────────
     Texture whiteTex;
@@ -272,6 +278,9 @@ int main(int argc, char** argv) {
             stdShader.setVec3("lightDir",    LIGHT_DIR);
             stdShader.setVec3("lightColor",  LIGHT_COLOR);
             stdShader.setFloat("fogDensity", FOG_DENSITY);
+            // Fresnel + shininess (valores ártico: hielo semisólido)
+            stdShader.setFloat("shininess",  48.0f);
+            stdShader.setVec3("fresnel0",    glm::vec3(0.06f, 0.07f, 0.09f));
             stdShader.setVec3("fogColor",    FOG_COLOR);
 
             // Render del museo (suelo, techo, paredes, plataformas)
@@ -282,6 +291,10 @@ int main(int argc, char** argv) {
             for (const auto& mod : museum.modules) {
                 moduleScene.draw(stdShader, mod.id, mod.center, mod.animT, totalTime);
             }
+
+            // Skybox — renderizar AL FINAL para aprovechar el early-z
+            // (el truco xyww hace que todos los fragmentos del skybox tengan z=1.0)
+            skybox.draw(skyboxShader, view, proj);
         }
 
         // ImGui siempre al final
@@ -314,6 +327,7 @@ int main(int argc, char** argv) {
 
     museum.free();
     moduleScene.free();
+    skybox.free();
     whiteTex.free();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
