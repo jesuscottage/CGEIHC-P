@@ -1,7 +1,7 @@
 # Infraestructura y Stack Técnico — CGEIHC-P
 
 > Proyecto: Calentamiento global en el polo norte
-> Última actualización: 2026-05-15
+> Última actualización: 2026-05-16
 > Ver también: `docs/knowledge/technology/especificaciones-proyecto.md`
 
 ---
@@ -12,217 +12,266 @@
 |------|------------|---------|-----------|
 | Lenguaje | C++ | C++17 | Lenguaje principal del motor gráfico |
 | API Gráfica | OpenGL | 3.3+ Core Profile | Renderizado 3D en tiempo real (requerido por la materia) |
-| Cargador de Extensiones | GLAD | 2.x | Cargador moderno de funciones OpenGL (reemplaza GLEW) |
-| Gestión de Ventana | GLFW | 3.3+ | Ventanas, contexto OpenGL, manejo de eventos |
-| Matemáticas | GLM | 0.9.9+ | Vectores, matrices, transformaciones MVP |
-| Carga de Modelos | Assimp | 5.x | Importar FBX/OBJ/GLTF exportados desde Blender |
+| Cargador de Extensiones | GLAD | 2.x | Cargador moderno de funciones OpenGL (más sencillo que GLEW) |
+| Gestión de Ventana | GLFW | 3.4+ | Ventanas, contexto OpenGL, manejo de eventos |
+| Matemáticas | GLM | 1.0.x | Vectores, matrices, transformaciones MVP |
+| Carga de Modelos | Assimp | 5.4.x | Importar GLTF/OBJ para modelos **estáticos** |
 | Carga de Texturas | stb_image | 2.x (header-only) | Carga PNG/JPG/HDR para texturas |
-| UI/HUD | Dear ImGui | 1.9x | Interfaz minimalista (HUD, menús, paneles info) |
-| Audio | OpenAL Soft | 1.23+ | Audio 3D posicional (libre y multiplataforma) |
-| Audio (archivos) | libsndfile | 1.2+ | Carga de archivos WAV/OGG para OpenAL |
-| Sistema de Build | CMake | 3.20+ | Gestión de dependencias con FetchContent |
+| Escritura de Imágenes | stb_image_write | 2.x (header-only) | Guardar screenshots con `glReadPixels` — clave para desarrollo autónomo |
+| Texto | stb_truetype | 1.x (header-only) | Rasterizar fuente TTF → atlas de textura OpenGL (baked al inicio) |
+| UI/HUD | Dear ImGui | 1.91+ | Pantallas de título/cierre, indicador `[E] Explorar` |
+| Audio | **miniaudio** | 0.11+ (header-only) | Audio 3D posicional + ambient loop. Reemplaza OpenAL Soft + libsndfile |
+| Sistema de Build | CMake | 3.20+ | Gestión de dependencias con FetchContent (tags congelados) |
 | IDE | Visual Studio 2022 Community | Free | Compilación y debugging en Windows |
-| Modelado 3D | Blender | 4.x | Creación de modelos, rigging y animaciones |
-| Generación IA | Meshy.ai | Web | Generación de modelos 3D desde texto (free tier) |
-| Debugging GPU | RenderDoc | 1.x | Captura y análisis de frames OpenGL |
+| Debugging GPU | RenderDoc | 1.x | Captura y análisis de frames OpenGL — estándar de facto |
 | Control de Versiones | Git + GitHub | — | Repositorio colaborativo |
 
 ---
 
-## Stack de Desarrollo Autónomo (Claude Code)
+## Decisiones de Stack — Justificación
 
-Esta sección documenta las herramientas que permiten a Claude Code trabajar de forma autónoma en el proyecto, con retroalimentación visual del resultado 3D.
+### ✅ miniaudio en vez de OpenAL Soft + libsndfile
 
-### El Problema: Claude No Puede "Ver" OpenGL Directamente
+**Cambio**: reemplaza las dos bibliotecas de audio por una sola.
 
-A diferencia de navegadores web (donde existe Playwright), no hay una herramienta estándar para que un agente IA controle y observe una ventana OpenGL. La solución es un **bucle de retroalimentación visual manual-asistido**:
+| Aspecto | OpenAL Soft + libsndfile | miniaudio |
+|---------|--------------------------|-----------|
+| Integración | 2 bibliotecas, DLLs separadas, setup complejo | Single-header (`miniaudio.h`) |
+| DLLs en Windows | Requiere copiar `OpenAL32.dll` al .exe | Sin DLLs — todo en el header |
+| Formatos | WAV (libsndfile), OGG necesita vorbis extra | WAV + OGG Vorbis built-in |
+| Audio 3D | Sí (posicionamiento OpenAL) | Sí (node graph con spatialization) |
+| Adopción | Estándar histórico | raylib lo adoptó en 2019, ampliamente usado en 2024-2025 |
+| CMake | Requiere FetchContent + configuración | Una sola línea: copiar `miniaudio.h` a `src/` |
 
-```
-Código C++/GLSL  →  CMake Build  →  Ejecutar .exe  →  Screenshot  →  Claude lee imagen  →  Itera
-```
-
-### Herramientas del Bucle Autónomo
-
-#### 1. Build Automatizado — CMake + PowerShell
-
-```powershell
-# Script de build y ejecución (scripts/build-and-run.ps1)
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --config Debug
-.\build\Debug\CGEIHC.exe
-```
-
-Claude ejecuta este script via Bash tool después de cada modificación de código.
-
-#### 2. Captura de Pantalla — PowerShell
-
-```powershell
-# Tomar screenshot después de N segundos de ejecución
-# scripts/screenshot.ps1
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-Start-Sleep -Seconds 3  # Esperar que la ventana OpenGL abra
-$screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-$bmp = New-Object System.Drawing.Bitmap($screen.Width, $screen.Height)
-$graphics = [System.Drawing.Graphics]::FromImage($bmp)
-$graphics.CopyFromScreen($screen.Location, [System.Drawing.Point]::Empty, $screen.Size)
-$bmp.Save("$PSScriptRoot\..\active\screenshot.png")
-```
-
-Claude luego lee `active/screenshot.png` con el Read tool (soporte de imágenes) para evaluar el resultado visual.
-
-#### 3. RenderDoc — Debugging de GPU
-
-- **URL**: [renderdoc.org](https://renderdoc.org/)
-- Permite capturar frames individuales con análisis detallado del pipeline
-- In-App API: `RENDERDOC_API_1_1_2` para captura programática
-- Muestra: buffers, texturas, shaders, draw calls, estado del pipeline
-
-Uso típico: cuando hay artefactos visuales no explicados por el código.
-
-#### 4. OpenGL Debug Callback (en código)
+**Impacto en el proyecto**: elimina la Fase 0 de configurar OpenAL en Windows VS2022, que es uno de los riesgos técnicos identificados. Los 5 archivos de audio (WAV + OGG) se cargan igual de sencillo.
 
 ```cpp
-// Activar en modo Debug — detecta errores de shader y estado
-glEnable(GL_DEBUG_OUTPUT);
-glDebugMessageCallback(MessageCallback, 0);
+// Uso mínimo — ambient loop global
+ma_engine engine;
+ma_engine_init(NULL, &engine);
+ma_engine_play_sound(&engine, "assets/audio/arctic_wind_loop.ogg", NULL);
+
+// Audio 3D posicional
+ma_sound sound;
+ma_sound_init_from_file(&engine, "assets/audio/ice_cracking.wav", 0, NULL, NULL, &sound);
+ma_sound_set_position(&sound, x, y, z);
+ma_sound_start(&sound);
 ```
 
-Salida directa a consola → Claude lee la salida del proceso via Bash.
+### ✅ glReadPixels + stb_image_write en vez de PowerShell screenshot
 
-#### 5. Blender Headless (Automatización de Assets)
+**Cambio crítico para el desarrollo autónomo.** El enfoque anterior (PowerShell capturando la pantalla) tiene problemas graves:
+- Falla si la ventana está tapada por otra
+- Depende de timing (espera fija de 3 segundos)
+- Captura la pantalla completa, no el framebuffer exacto de OpenGL
 
-```bash
-# Exportar modelo desde Blender sin UI
-blender --background modelo.blend --python export_script.py
+**Solución**: implementar `saveScreenshot()` directamente en el motor usando `glReadPixels` + `stb_image_write`. Claude activa la captura con una tecla (F12) o automáticamente tras N frames.
+
+```cpp
+void saveScreenshot(const char* path, int width, int height) {
+    std::vector<unsigned char> pixels(width * height * 3);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+    // OpenGL origin es bottom-left; stb_image_write espera top-left
+    stbi_flip_vertically_on_write(true);
+    stbi_write_png(path, width, height, 3, pixels.data(), width * 3);
+}
+// Uso en el loop: if (glfwGetKey(window, GLFW_KEY_F12)) saveScreenshot("active/screenshot.png", W, H);
 ```
 
-Claude puede generar scripts de exportación para automatizar el pipeline de assets.
+Claude ejecuta la app, presiona F12 programáticamente o espera N frames, lee `active/screenshot.png` con el Read tool y evalúa el resultado visual. **Funciona independientemente de la posición o foco de la ventana.**
+
+### ⚠️ Assimp — solo para modelos estáticos (GLTF animado: estrategia de fallback)
+
+Assimp tiene problemas documentados con skeletal animation en GLTF. Para el proyecto:
+
+- **Uso principal de Assimp**: cargar todos los modelos **estáticos** (iceberg, edificios, turbina, auto, árbol, globo, fauna) — funciona perfectamente.
+- **Oso polar** (único modelo animado): intentar carga con Assimp primero. Si el clip idle no carga correctamente, fallback a **animación procedural simple** (bob en Y con función seno — no requiere esqueleto).
+
+Si el fallback se activa, el oso simplemente oscila suavemente — es aceptable y evita introducir cgltf como dependencia adicional. El proyecto no falla por esto.
+
+### ✅ CMake FetchContent con tags congelados
+
+Se mantiene FetchContent sobre vcpkg por simplicidad académica. **Cambio obligatorio**: congelar tags de versión exactos para reproducibilidad y evitar problemas de red.
+
+```cmake
+FetchContent_Declare(glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG        3.4                          # TAG CONGELADO — no usar HEAD o main
+)
+FetchContent_Declare(glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG        1.0.1
+)
+FetchContent_Declare(assimp
+    GIT_REPOSITORY https://github.com/assimp/assimp.git
+    GIT_TAG        v5.4.3
+)
+FetchContent_Declare(imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.91.6
+)
+```
+
+### ✅ stb_truetype — correcto para este caso de uso
+
+Para los letreros del museo: texto en español, caracteres ASCII + acentos, atlas generado **una sola vez en Init()**, sin texto dinámico en tiempo real. stb_truetype es la elección correcta — más ligero que FreeType y sin dependencias adicionales.
 
 ---
 
-## Pipeline de Assets (Blender → OpenGL)
+## Pipeline de Desarrollo Autónomo (Claude Code)
+
+Este es el loop que permite a Claude trabajar con retroalimentación visual real del motor OpenGL:
 
 ```
-Blender (.blend)
-    ↓  [Modelado + Rigging + Animación]
-    ↓  [Export: File > Export > FBX/GLTF]
-Asset exportado (.fbx / .gltf / .obj)
+1. Claude modifica código C++/GLSL
+2. Bash: cmake --build build --config Debug --parallel
+3. Bash: .\build\Debug\CGEIHC.exe (en background, N frames)
+4. La app guarda automáticamente active/screenshot.png (glReadPixels, frame N)
+5. Claude lee active/screenshot.png con Read tool — ve el resultado 3D
+6. Itera basándose en el resultado visual
+```
+
+### Scripts en `scripts/`
+
+```powershell
+# build-and-run.ps1 — Build y ejecutar
+cmake --build build --config Debug --parallel
+Start-Process ".\build\Debug\CGEIHC.exe"
+```
+
+La captura de screenshot ocurre **dentro de la app** (F12 o automático al frame 60) — no requiere script externo.
+
+### Debugging GPU con RenderDoc
+
+- Captura manual de frames para analizar pipeline, buffers y shaders
+- In-App API para captura programática: `RENDERDOC_API_1_1_2`
+- Útil para artefactos visuales que el debug callback de OpenGL no explica
+- Activar en Debug builds: `glEnable(GL_DEBUG_OUTPUT)` + `glDebugMessageCallback`
+
+---
+
+## Estructura del Código `src/`
+
+```
+src/
+├── main.cpp                    # Entry point, AppState { TITULO, JUGANDO, CIERRE, SALIR }
+│
+├── core/
+│   ├── Window.h/.cpp           # Ventana GLFW, callbacks, swap buffers
+│   ├── Input.h/.cpp            # Polling teclado/mouse
+│   └── Time.h/.cpp             # deltaTime, frame pacing
+│
+├── graphics/
+│   ├── Shader.h/.cpp           # Compilar GLSL, uniforms (setMat4, setFloat, setVec3)
+│   ├── Texture.h/.cpp          # stb_image → GLuint
+│   ├── Mesh.h/.cpp             # VAO/VBO/EBO, draw()
+│   ├── Model.h/.cpp            # Assimp → vector<Mesh>
+│   ├── CameraFPS.h/.cpp        # FPS camera, MVP, clamp AABB
+│   ├── Skybox.h/.cpp           # Cubemap 6 caras, shader skybox
+│   └── particles/
+│       └── SnowSystem.h/.cpp   # 80-120 billboards, VBO dinámico CPU→GPU
+│
+├── animation/
+│   ├── Animator.h/.cpp         # Skeletal animation (solo oso polar idle)
+│   └── Lerp.h                  # mix(), clamp(), helpers
+│
+├── modules/
+│   ├── ModuloBase.h/.cpp       # Trigger XZ, EstadoModulo, t, animate(), reset()
+│   ├── ModuloIceberg.h/.cpp
+│   ├── ModuloPolarBear.h/.cpp
+│   ├── ModuloSeaLevel.h/.cpp
+│   ├── ModuloTurbina.h/.cpp
+│   ├── ModuloAuto.h/.cpp
+│   ├── ModuloArbol.h/.cpp
+│   └── ModuloGlobo.h/.cpp
+│
+├── scene/
+│   ├── MuseumScene.h/.cpp      # std::vector<std::unique_ptr<ModuloBase>>, update/render
+│   ├── ResourceManager.h/.cpp  # Caché modelos/texturas/shaders por path
+│   ├── SignSystem.h/.cpp       # stb_truetype → textura unlit (generada en Init)
+│   └── TriggerZone.h/.cpp      # Distancia XZ, módulo activo
+│
+├── ui/
+│   ├── HUD.h/.cpp              # [E] Explorar (Dear ImGui, bottom-center)
+│   ├── TitleScreen.h/.cpp      # Foto ártica + fade-in, Enter para comenzar
+│   └── CreditsScreen.h/.cpp    # Pantalla de cierre desde M5
+│
+└── audio/
+    └── AudioEngine.h/.cpp      # miniaudio: ambient loop + 3 fuentes 3D posicionales
+```
+
+---
+
+## Pipeline de Assets
+
+```
+Sketchfab / Poly Haven
+    ↓  [Descargar GLTF/OBJ + texturas CC0]
+assets/models/ + assets/textures/
     ↓  [Assimp carga en tiempo de ejecución]
-Motor OpenGL (C++)
+Motor OpenGL (src/graphics/Model.cpp)
     ↓  [VAO/VBO → Shaders GLSL → Renderizado]
 Pantalla
 ```
 
-### Formatos de Export Recomendados
+### Fuentes de Assets
 
-| Formato | Ventajas | Uso |
-|---------|----------|-----|
-| **GLTF/GLB** | Estándar moderno, incluye animaciones, texturas embebidas | Modelos con animación |
-| **FBX** | Amplio soporte en Assimp, incluye rigging | Personajes con esqueleto |
-| **OBJ + MTL** | Simple, universal, fácil de debuggear | Objetos estáticos del entorno |
-
-### Repositorios de Modelos Gratuitos
-
-- [Sketchfab](https://sketchfab.com/) — Modelos 3D CC0/free, exportar en OBJ/FBX
-- [Meshy.ai](https://www.meshy.ai/) — Generación IA de modelos 3D desde texto
-- [Poly Haven](https://polyhaven.com/) — Modelos y texturas CC0
+| Tipo | Fuente | Licencia |
+|------|--------|----------|
+| Modelos 3D | [Sketchfab](https://sketchfab.com/) | CC0 / Free |
+| Texturas PBR | [ambientcg.com](https://ambientcg.com/) | CC0 |
+| Skybox HDR | [polyhaven.com](https://polyhaven.com/) | CC0 |
+| Audio | [freesound.org](https://freesound.org/) | CC0 |
+| Fuente TTF | Roboto-Regular (Google Fonts) | Apache 2.0 |
 
 ---
 
-## Fuentes de Texturas (CC0 / Gratuitas)
+## Dependencias CMake (FetchContent, tags congelados)
 
-| Fuente | Tipo de texturas |
-|--------|-----------------|
-| [ambientcg.com](https://ambientcg.com/) | PBR completas (albedo, normal, roughness, AO) |
-| [polyhaven.com](https://polyhaven.com/) | PBR completas + HDR para skybox |
-| [3dtextures.me](https://3dtextures.me/) | PBR gratuitas de alta calidad |
-| [texturelabs.org](https://texturelabs.org/) | Variedad de materiales |
-| [architextures.org](https://architextures.org/) | Arquitectura y superficies |
-| [humus.name](https://www.humus.name/index.php?page=Textures) | Cubemaps / skyboxes |
+```cmake
+include(FetchContent)
 
-**Texturas clave para este proyecto**:
-- Hielo (con normal map para grietas, transparencia con alpha)
-- Nieve (diffuse + normal)
-- Agua ártica (animated via shader, normal map para ondas)
-- Roca congelada
-- Metal oxidado (ruta problemática)
-- Panel solar, turbina eólica (ruta sostenible)
+# GLFW — ventana y eventos
+FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG 3.4)
 
----
+# GLAD — cargador OpenGL 3.3 Core (generado en glad.dav1d.de)
+# Se incluye directamente en src/ como headers (no FetchContent)
 
-## Arquitectura del Motor (Módulos)
+# GLM — matemáticas
+FetchContent_Declare(glm GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG 1.0.1)
 
-Según los blueprints del proyecto:
+# Assimp — carga de modelos estáticos
+FetchContent_Declare(assimp GIT_REPOSITORY https://github.com/assimp/assimp.git GIT_TAG v5.4.3)
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
 
-```
-CGEIHC/
-├── src/
-│   ├── main.cpp              # Entry point, init GLFW/GLAD/OpenGL
-│   ├── renderer/
-│   │   ├── Renderer.cpp/h    # Módulo de renderizado (VAO/VBO, draw calls)
-│   │   ├── Shader.cpp/h      # Compilación y gestión de shaders GLSL
-│   │   └── Texture.cpp/h     # Carga y binding de texturas (stb_image)
-│   ├── scene/
-│   │   ├── Scene.cpp/h       # Módulo de escena (grafo de escena)
-│   │   ├── Model.cpp/h       # Carga de modelos via Assimp
-│   │   └── Skybox.cpp/h      # Cubemap/skybox polar
-│   ├── camera/
-│   │   └── Camera.cpp/h      # Free-fly camera (WASD + mouse + delta time)
-│   ├── animation/
-│   │   ├── Animator.cpp/h    # Keyframe + LERP/SLERP
-│   │   └── Procedural.cpp/h  # Animación procedural (partículas, océano)
-│   ├── input/
-│   │   └── InputManager.cpp/h # Teclado, mouse, triggers de proximidad
-│   ├── audio/
-│   │   └── AudioManager.cpp/h # OpenAL, carga WAV/OGG
-│   ├── ui/
-│   │   └── HUD.cpp/h          # Dear ImGui: paneles info, HUD climático
-│   └── particles/
-│       └── ParticleSystem.cpp/h # Nieve, humo, metano, hielo
-├── shaders/
-│   ├── blinn_phong.vs/fs     # Iluminación principal (opaco)
-│   ├── fresnel.vs/fs         # Materiales translúcidos (hielo, agua)
-│   ├── ocean.vs/fs           # Océano procedural (Perlin Noise, ondas)
-│   ├── particle.vs/fs        # Sistema de partículas
-│   ├── skybox.vs/fs          # Skybox cubemap
-│   └── hud.vs/fs             # Renderizado de UI 2D
-├── assets/
-│   ├── models/               # Modelos 3D exportados (.obj, .fbx, .gltf)
-│   ├── textures/             # Texturas (PNG, JPG, HDR)
-│   └── audio/                # Efectos de sonido (WAV, OGG)
-├── CMakeLists.txt            # Sistema de build con FetchContent
-└── README.txt                # Instrucciones de instalación y uso
+# Dear ImGui — UI (añadir backend GLFW+OpenGL3 manualmente en src/)
+FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.91.6)
+
+# stb — texturas, escritura de imágenes, truetype (header-only, copiar a src/vendor/)
+# miniaudio — audio (header-only, copiar miniaudio.h a src/vendor/)
+
+FetchContent_MakeAvailable(glfw glm assimp imgui)
 ```
 
+**stb y miniaudio se incluyen como headers** directamente en `src/vendor/` — sin FetchContent, sin configuración de CMake.
+
 ---
 
-## Configuración del Entorno (Setup)
+## Configuración del Entorno
 
 ### Prerrequisitos
 
-1. **Visual Studio 2022 Community** (gratis) — con workload "Desktop development with C++"
+1. **Visual Studio 2022 Community** — workload "Desktop development with C++"
 2. **CMake 3.20+** — `winget install Kitware.CMake`
-3. **Blender 4.x** — [blender.org](https://www.blender.org/)
-4. **Git** — ya instalado (proyecto en git)
-5. **RenderDoc** — [renderdoc.org](https://renderdoc.org/)
+3. **Git** — `winget install Git.Git`
+4. **RenderDoc** — [renderdoc.org](https://renderdoc.org/) (debugging GPU)
 
-### Dependencias Gestionadas por CMake (FetchContent)
-
-Las siguientes dependencias se descargan automáticamente al hacer `cmake -B build`:
-- GLFW (ventana y eventos)
-- GLAD (cargador de extensiones OpenGL 3.3 Core)
-- GLM (matemáticas)
-- Assimp (carga de modelos)
-- stb_image (header-only, carga de texturas)
-- Dear ImGui (UI/HUD)
-
-OpenAL Soft y libsndfile se instalan por separado o vía vcpkg.
-
-### Comandos de Build
+### Build
 
 ```powershell
-# Desde la raíz del proyecto
+git clone https://github.com/jesuscottage/CGEIHC-P.git
+cd CGEIHC-P
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --config Debug --parallel
 .\build\Debug\CGEIHC.exe
@@ -230,32 +279,9 @@ cmake --build build --config Debug --parallel
 
 ---
 
-## Técnicas OpenGL Requeridas por la Rúbrica
-
-| Requisito | Implementación |
-|-----------|---------------|
-| 2+ técnicas de iluminación | Blinn-Phong (objetos opacos) + Fresnel (hielo, agua) |
-| Environment mapping | Cubemap/skybox + reflection mapping en agua y superficies metálicas |
-| Animación básica | Transformaciones directas (rotación de turbinas, traslación de vehículos) |
-| Animación keyframe | LERP/SLERP en icebergs derritiéndose, apertura de módulos, personajes |
-| Animación procedural | Océano (Perlin Noise en vertex shader), partículas de nieve, niebla |
-| Interacción | Free-fly camera + triggers por proximidad + HUD |
-
----
-
-## Optimizaciones Planificadas
-
-- **Hardware instancing** (rocas, partículas de nieve repetidas)
-- **Frustum culling** (no renderizar objetos fuera del campo de visión)
-- **Reutilización de shaders**
-- **VAO/VBO estáticos** para geometría que no cambia
-- **LOD básico** para modelos distantes (si es necesario)
-- **Gestión eficiente de memoria gráfica**
-
----
-
 ## Empaquetado Final
 
-- **InstallForge** (gratis) — crear setup.exe con las DLLs necesarias
-- Incluir: ejecutable, assets (modelos, texturas, audio), `README.txt`, `manual.pdf`
-- El instalador debe funcionar en cualquier PC con driver OpenGL 3.3+
+- **InstallForge** (gratis, recomendado por el profesor) — crear `setup.exe`
+- Incluir: ejecutable, assets/, `README.txt`
+- Con miniaudio (header-only): **sin DLLs de audio que redistribuir**
+- Solo DLLs necesarias: las de Assimp y GLFW (gestionadas por CMake)

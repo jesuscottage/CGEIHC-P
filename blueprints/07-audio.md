@@ -55,15 +55,16 @@ Para los 3 módulos con sonido propio:
 | Parámetro | Valor |
 |-----------|-------|
 | Posición de la fuente | Coordenadas del modelo principal del módulo |
-| Modelo de atenuación | `AL_LINEAR_DISTANCE_CLAMPED` |
+| Modelo de atenuación | Lineal con clamping (equivalente a `AL_LINEAR_DISTANCE_CLAMPED`) |
 | Distancia de referencia | 8 m (volumen máximo dentro del trigger) |
 | Distancia máxima | 20 m (silencio total más allá) |
-| Canal | Mono (requerido por OpenAL para posicionamiento 3D correcto) |
+| Canal | Mono (requerido para posicionamiento 3D correcto) |
 
-El oyente se actualiza cada frame:
+El oyente se actualiza cada frame con miniaudio:
 ```cpp
-alListener3f(AL_POSITION, camera.x, camera.y, camera.z);
-alListenerfv(AL_ORIENTATION, orientationArray); // forward + up vectors
+ma_engine_listener_set_position(&engine, 0, camera.x, camera.y, camera.z);
+ma_engine_listener_set_direction(&engine, 0, front.x, front.y, front.z);
+ma_engine_listener_set_world_up(&engine, 0, 0.0f, 1.0f, 0.0f);
 ```
 
 ---
@@ -81,7 +82,7 @@ No se incluye pista musical — el viento ártico y los sonidos de módulos prov
 | Efectos cortos (activación, módulos) | WAV PCM | Sin compresión, carga instantánea, estándar en desarrollo gráfico |
 | Ambient largo (viento en loop) | OGG Vorbis | Open source, compresión eficiente, estándar en motores de videojuegos (Unity, Godot, Unreal) |
 
-Carga: **libsndfile** decodifica WAV y OGG → buffer de muestras PCM → `alBufferData()` → OpenAL buffer.
+Carga: **miniaudio** decodifica WAV y OGG de forma nativa (built-in, sin dependencias externas) → streaming o buffer interno gestionado por el engine.
 
 ---
 
@@ -101,8 +102,9 @@ Todos los archivos van en `assets/audio/`.
 
 ## Notas de Implementación
 
-- Inicializar OpenAL con `alcOpenDevice(NULL)` + `alcCreateContext` al arranque
-- Un único `AudioManager` con métodos `playGlobal(buffer)`, `play3D(buffer, pos)`, `stopAll()`
-- El ambient de viento se configura con `alSourcei(source, AL_LOOPING, AL_TRUE)` al inicio
-- Los sonidos de módulo se detienen al salir del trigger (`alSourceStop`)
-- El canal del ambient es stereo → source 2D (no posicional); los módulos son mono → source 3D
+- Inicializar miniaudio con `ma_engine_init(NULL, &engine)` al arranque (single-header, sin DLLs)
+- Un único `AudioEngine` con métodos `playGlobal(path)`, `play3D(path, pos)`, `stopAll()`
+- El ambient de viento se activa con `ma_sound_set_looping(&wind, MA_TRUE)` al inicio
+- Los sonidos de módulo se detienen al salir del trigger (`ma_sound_stop(&sound)`)
+- El ambient es reproducido como fuente global (sin spatialization); los módulos usan `ma_sound_set_position()` para posicionamiento 3D
+- Sin DLLs que redistribuir — miniaudio es header-only (`src/vendor/miniaudio.h`)
