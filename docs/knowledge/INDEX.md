@@ -1,44 +1,33 @@
-# Knowledge Base Index / Índice de Conocimiento
+# Índice de Conocimiento — CGEIHC-P
 
-> Last updated / Última actualización: 2026-04-25
-> Query: `/consultar-conocimiento [topic]` or `/query-knowledge [topic]`
-> The researcher agent keeps this index updated.
-
----
-
-## Categories / Categorías
-
-| Folder | Content |
-|--------|---------|
-| `competitors/` | Direct and indirect competitor analysis |
-| `market/` | TAM, segments, pricing benchmarks, trends |
-| `methodology/` | Frameworks, best practices, standards |
-| `regulations/` | GDPR, local laws, compliance |
-| `technology/` | Stack, libraries, architecture decisions |
+> Proyecto: Calentamiento global en el polo norte
+> Última actualización: 2026-05-15
+> Consultar: `/consultar-conocimiento [tema]`
 
 ---
 
-## Documents / Documentos
+## Categorías
 
-| ID | Path | Title | Date | Description |
-|----|------|-------|------|-------------|
-| LA-001 | `methodology/lecciones-aprendidas-skills.md` | Lecciones aprendidas — mejoras generales para skills jurídicas | 2026-04-25 | Documento vivo. Se precarga en toda skill jurídica. Captura patrones de error generales y sugerencias acumuladas; nunca contiene datos de casos. |
+| Carpeta | Contenido |
+|---------|-----------|
+| `technology/` | Especificaciones técnicas, idea, storyboard, materiales del curso, stack |
 
 ---
 
-## How to add documents / Cómo agregar documentos
+## Documentos
 
-1. Create a file in the appropriate category folder (e.g., `docs/knowledge/technology/my-topic.md`)
-2. Add YAML frontmatter:
-   ```yaml
-   ---
-   title: Document title
-   date: YYYY-MM-DD
-   category: competitors|market|methodology|regulations|technology
-   tags: [tag1, tag2]
-   status: draft|complete|outdated
-   ---
-   ```
-3. Write the content
-4. **Update this INDEX.md** — add a row to the table above
-5. If using the researcher agent, it does steps 1-4 automatically
+| ID | Ruta | Título | Fecha | Descripción |
+|----|------|--------|-------|-------------|
+| T-001 | `technology/especificaciones-proyecto.md` | Especificaciones del Proyecto Final CGEIHC 2026-2 | 2026-05-15 | Rúbricas completas, entregables, requisitos técnicos (OpenGL 3+, 2 iluminaciones, 3 tipos de animación), metodología de desarrollo por prototipos |
+| T-002 | `technology/idea-bocetos-storyboard.md` | Idea, Boceto y Storyboard — Calentamiento Global en el Polo Norte | 2026-05-06 | Concepto del museo virtual, dos rutas narrativas (problemática/sostenible), boceto estructural, lista completa de modelos 3D, animaciones, materiales y efectos |
+| T-003 | `technology/materiales-curso.md` | Materiales del Curso CGEIHC 2026-2 | 2026-05-15 | Syllabus completo (8 temas), bibliografía oficial, shaders de ejemplo del profesor (ondas + Fresnel), evaluación del curso |
+| T-004 | `../../INFRAESTRUCTURA.md` | Infraestructura y Stack Técnico | 2026-05-15 | Stack completo: OpenGL/GLAD/GLFW/GLM/Assimp/ImGui/OpenAL, pipeline de assets, herramientas de desarrollo autónomo con Claude Code, arquitectura del motor, optimizaciones |
+| T-005 | `technology/fuentes-datos-museo.md` | Investigación de Fuentes — Datos Científicos del Museo | 2026-05-15 | Hallazgos y correcciones de investigación web: hielo marino (NSIDC/PIOMAS), osos polares (IUCN), nivel del mar (USGS/NOAA/IPCC), renovables (IEA), transporte (IEA), sumideros (GCP), acuerdos (UNEP). URLs de referencia rápida. |
+
+---
+
+## Cómo Agregar Documentos
+
+1. Crear el archivo en la carpeta de categoría correcta con frontmatter YAML
+2. Actualizar esta tabla (ID, ruta, título, fecha, descripción)
+3. El ID sigue el formato `{inicial-categoría}-{número}`
