@@ -239,8 +239,8 @@ private:
             {{ 40,0,75}, {0,-1,0}, {8, 16 }},
             {{ 40,0,-5}, {0,-1,0}, {8,  0 }},
         };
-        // CCW visto desde abajo (-Y) para front-face con GL_CCW default
-        std::vector<unsigned int> cIdx = {0,2,1, 0,3,2};
+        // Probar winding opuesto para visibilidad desde abajo
+        std::vector<unsigned int> cIdx = {0,1,2, 0,2,3};
         ceilingMesh.setup(cVerts, cIdx);
     }
 
