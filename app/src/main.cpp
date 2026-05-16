@@ -1,4 +1,4 @@
-// main.cpp — Fase 9: Letreros 3D + UI narrativa + audio (miniaudio)
+// main.cpp — Fase 10: Integración narrativa completa (título + recorrido + cierre)
 
 #include "glad/glad.h"
 #include "core/Window.h"
@@ -183,10 +183,12 @@ int main(int argc, char** argv) {
     AppState state     = testCfg.enabled ? AppState::JUGANDO : AppState::TITULO;
     double   titleTimer = glfwGetTime();
 
-    int    frameCount = 0;
-    double fpsTimer   = glfwGetTime();
-    int    fpsFrames  = 0;
-    float  currentFPS = 60.0f;
+    int    frameCount    = 0;
+    double fpsTimer      = glfwGetTime();
+    int    fpsFrames     = 0;
+    float  currentFPS    = 60.0f;
+    double cierreTimer   = 0.0;   // momento en que se entró al estado CIERRE
+    int    modulesCompleted = 0;  // cuántos módulos han llegado a animT=1.0
 
     const int   CAPTURE_FRAMES[] = {60, 300, 600};
     const char* CAPTURE_NAMES[]  = {
@@ -249,13 +251,92 @@ int main(int argc, char** argv) {
 
                 if (glfwGetKey(window.handle, GLFW_KEY_ESCAPE) == GLFW_PRESS)
                     state = AppState::SALIR;
+
+                // Contar módulos completados para activar el cierre narrativo
+                {
+                    int done = 0;
+                    for (const auto& m : museum.modules)
+                        if (m.animT >= 1.0f) done++;
+                    modulesCompleted = done;
+                    // Si M5 (el último módulo) completó su animación → CIERRE
+                    for (const auto& m : museum.modules)
+                        if (m.id == "M5" && m.animT >= 1.0f && !testCfg.enabled) {
+                            state = AppState::CIERRE;
+                            cierreTimer = glfwGetTime();
+                        }
+                }
                 break;
             }
-            case AppState::CIERRE: state = AppState::SALIR; break;
+            case AppState::CIERRE:
+                // Pantalla de cierre durante 5 segundos antes de salir
+                if (glfwGetTime() - cierreTimer > 5.0 ||
+                    glfwGetKey(window.handle, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+                    state = AppState::SALIR;
+                break;
             case AppState::SALIR:  break;
         }
 
         // ── ImGui overlays ────────────────────────
+
+        // Pantalla de título
+        if (state == AppState::TITULO) {
+            float pw = 560.0f, ph = 240.0f;
+            ImGui::SetNextWindowPos(
+                ImVec2((window.width() - pw) * 0.5f, (window.height() - ph) * 0.45f),
+                ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(pw, ph), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.75f);
+            ImGui::Begin("Titulo", nullptr,
+                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoSavedSettings);
+            ImGui::SetCursorPosX(pw * 0.08f);
+            ImGui::TextColored(ImVec4(0.55f, 0.82f, 1.0f, 1.0f),
+                "NUESTRO MUNDO");
+            ImGui::Spacing();
+            ImGui::SetCursorPosX(pw * 0.05f);
+            ImGui::TextColored(ImVec4(0.8f, 0.92f, 1.0f, 1.0f),
+                "Polo Norte  -  Calentamiento Global");
+            ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::TextWrapped(
+                "Recorre un museo virtual en el Artico y descubre las "
+                "consecuencias del calentamiento global y las soluciones "
+                "que la humanidad puede adoptar.");
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(1.0f, 0.9f, 0.4f, 1.0f),
+                "  [ ESPACIO ]  para iniciar el recorrido");
+            ImGui::End();
+        }
+
+        // Pantalla de cierre
+        if (state == AppState::CIERRE) {
+            float pw = 560.0f, ph = 220.0f;
+            ImGui::SetNextWindowPos(
+                ImVec2((window.width() - pw) * 0.5f, (window.height() - ph) * 0.45f),
+                ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(pw, ph), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.80f);
+            ImGui::Begin("Cierre", nullptr,
+                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoSavedSettings);
+            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.6f, 1.0f),
+                "Gracias por tu visita");
+            ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::TextWrapped(
+                "El calentamiento global es una realidad que afecta a nuestro "
+                "planeta hoy. Cada decision importa.");
+            ImGui::Spacing();
+            ImGui::TextWrapped(
+                "Modulos completados: %d / %d",
+                modulesCompleted, (int)museum.modules.size());
+            ImGui::Spacing();
+            float t = (float)(glfwGetTime() - cierreTimer) / 5.0f;
+            ImGui::ProgressBar(glm::clamp(t, 0.0f, 1.0f),
+                ImVec2(-1.0f, 0.0f), "Cerrando...");
+            ImGui::End();
+        }
+
         if (state == AppState::JUGANDO) {
             // ── Panel debug (esquina superior izq) ──────────────────────
             ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
@@ -309,7 +390,7 @@ int main(int argc, char** argv) {
         glm::mat4 view = camera.getViewMatrix();
         glm::mat4 proj = camera.getProjectionMatrix(window.aspectRatio());
 
-        if (state == AppState::TITULO) {
+        if (state == AppState::TITULO || state == AppState::CIERRE) {
             glClearColor(0.02f, 0.04f, 0.12f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         } else {
