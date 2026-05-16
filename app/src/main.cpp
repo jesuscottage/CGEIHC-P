@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
     ma_engine audioEngine;
     bool audioOk = (ma_engine_init(nullptr, &audioEngine) == MA_SUCCESS);
     if (audioOk) {
-        // Sonido ambiental de viento ártico (si existe el archivo)
-        ma_engine_play_sound(&audioEngine, ASSETS_DIR "audio/ambient.ogg", nullptr);
+        // Sonido ambiental de viento ártico
+        ma_engine_play_sound(&audioEngine, ASSETS_DIR "audio/ambient.mp3", nullptr);
     }
 
     // ── ImGui ─────────────────────────────────
@@ -140,6 +140,8 @@ int main(int argc, char** argv) {
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window.handle, true);
     ImGui_ImplOpenGL3_Init("#version 330");
+    // Fuente: usar default de ImGui (evitar problemas con paths Unicode en Windows)
+    // Roboto-Regular.ttf disponible en assets/fonts/ para empaquetado final
 
     // ── Shaders ───────────────────────────────
     Shader stdShader, unlitShader, skyboxShader, waterShader;

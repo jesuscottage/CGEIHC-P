@@ -35,10 +35,31 @@ public:
                            | aiProcess_GenSmoothNormals
                            | aiProcess_CalcTangentSpace;
 
+        // Intentar carga directa primero
         const aiScene* scene = importer.ReadFile(path, flags);
+
+        // Si falla (ej: paths Unicode en Windows), cargar desde memoria
+        std::vector<char> fileData;
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-            std::cerr << "[Model] Error Assimp: " << importer.GetErrorString() << "\n";
-            return false;
+            FILE* fp = fopen(path.c_str(), "rb");
+            if (!fp) {
+                std::cerr << "[Model] No se pudo abrir: " << path << "\n";
+                return false;
+            }
+            fseek(fp, 0, SEEK_END);
+            long sz = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            fileData.resize(sz);
+            fread(fileData.data(), 1, sz, fp);
+            fclose(fp);
+
+            // Determinar hint de formato por extensión
+            std::string ext = path.substr(path.find_last_of('.'));
+            scene = importer.ReadFileFromMemory(fileData.data(), sz, flags, ext.c_str());
+            if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+                std::cerr << "[Model] Error Assimp (memoria): " << importer.GetErrorString() << "\n";
+                return false;
+            }
         }
         directory = path.substr(0, path.find_last_of("/\\"));
         processNode(scene->mRootNode, scene);

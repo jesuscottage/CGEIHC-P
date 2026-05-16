@@ -16,6 +16,10 @@
 #include <string>
 #include <cmath>
 
+#ifndef ASSETS_DIR
+#define ASSETS_DIR "assets/"
+#endif
+
 // ──────────────────────────────────────────────────────────
 // Descripción de un módulo interactivo
 // ──────────────────────────────────────────────────────────
@@ -71,6 +75,9 @@ public:
     // Mesh compartido para los letreros 3D
     Mesh signCube;
 
+    // Texturas del museo
+    Texture floorTex, wallTex, iceTex;
+
     // AABB del recorrido (para clampear la cámara)
     glm::vec3 aabbMin{ -20.0f, 0.0f, -5.0f };
     glm::vec3 aabbMax{  20.0f, 0.0f, 75.0f };
@@ -80,7 +87,11 @@ public:
         buildFloor();
         buildWalls();
         buildPlatforms();
-        signCube = makeCube(); // mesh compartido para todos los letreros
+        signCube = makeCube();
+        // Cargar texturas (fallback: si no existe, Texture::load retorna false y se usa baseColor)
+        floorTex.load(ASSETS_DIR "textures/floor.png");
+        wallTex.load(ASSETS_DIR "textures/wall.png");
+        iceTex.load(ASSETS_DIR "textures/ice.png");
     }
 
     // Retorna el módulo más cercano a la cámara (o nullptr)
@@ -95,12 +106,18 @@ public:
     }
 
     // Render: suelo, techo, paredes, plataformas
-    void draw(Shader& shader, const glm::vec3& viewPos) const {
-        // Suelo — hielo blanco-azulado con tiling UV
+    void draw(Shader& shader, const glm::vec3& viewPos) {
+        // Suelo — textura de concreto si disponible
         {
             shader.setMat4("model", glm::mat4(1.0f));
-            shader.setBool("useTexture", false);
-            shader.setVec3("baseColor", glm::vec3(0.82f, 0.90f, 0.96f));
+            if (floorTex.id) {
+                shader.setBool("useTexture", true);
+                floorTex.bind(0);
+                shader.setInt("texDiffuse", 0);
+            } else {
+                shader.setBool("useTexture", false);
+                shader.setVec3("baseColor", glm::vec3(0.82f, 0.90f, 0.96f));
+            }
             floorMesh.draw();
         }
 
@@ -113,20 +130,32 @@ public:
             ceilingMesh.draw();
         }
 
-        // Paredes
+        // Paredes — textura de concreto claro si disponible
         for (const auto& w : walls) {
-            shader.setMat4("model",     w.transform);
-            shader.setBool("useTexture", false);
-            shader.setVec3("baseColor",  w.color);
+            shader.setMat4("model", w.transform);
+            if (wallTex.id) {
+                shader.setBool("useTexture", true);
+                wallTex.bind(0);
+                shader.setInt("texDiffuse", 0);
+            } else {
+                shader.setBool("useTexture", false);
+                shader.setVec3("baseColor", w.color);
+            }
             w.mesh.draw();
         }
 
-        // Plataformas
+        // Plataformas — textura de hielo si disponible
         for (const auto& p : platforms) {
             glm::mat4 m = glm::translate(glm::mat4(1.0f), p.pos);
             shader.setMat4("model", m);
-            shader.setBool("useTexture", false);
-            shader.setVec3("baseColor", glm::vec3(0.60f, 0.80f, 0.95f)); // azul hielo
+            if (iceTex.id) {
+                shader.setBool("useTexture", true);
+                iceTex.bind(0);
+                shader.setInt("texDiffuse", 0);
+            } else {
+                shader.setBool("useTexture", false);
+                shader.setVec3("baseColor", glm::vec3(0.60f, 0.80f, 0.95f));
+            }
             p.mesh.draw();
         }
     }

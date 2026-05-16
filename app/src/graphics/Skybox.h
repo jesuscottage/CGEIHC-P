@@ -1,13 +1,20 @@
 #pragma once
-// Skybox.h — Fase 7A: cubemap ártico procedural + render con depth trick
+// Skybox.h — Cubemap ártico: carga PNGs si existen, fallback a procedural
 
 #include "glad/glad.h"
 #include "Shader.h"
+#include "stb_image.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <vector>
+#include <string>
+
+#ifndef ASSETS_DIR
+#define ASSETS_DIR "assets/"
+#endif
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Vértices de un cubo unitario centrado en el origen (36 verts, sin índices)
@@ -60,9 +67,20 @@ public:
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
         glBindVertexArray(0);
 
-        // Cubemap
+        // Cubemap — intentar cargar PNGs primero
         glGenTextures(1, &cubemap);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
+
+        if (loadFromFiles()) {
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+            return; // PNGs cargados exitosamente
+        }
+        // Fallback: generar cubemap procedural
 
         const int SZ = 64;
         std::vector<uint8_t> face((size_t)(SZ * SZ * 3));
@@ -205,4 +223,29 @@ public:
         if (cubemap) { glDeleteTextures(1, &cubemap);    cubemap = 0; }
     }
 
+private:
+    // Intenta cargar 6 caras PNG desde assets/skybox/
+    // Orden OpenGL: +X, -X, +Y, -Y, +Z, -Z
+    bool loadFromFiles() {
+        const char* faceNames[6] = {
+            "right", "left", "top", "bottom", "front", "back"
+        };
+        const GLenum targets[6] = {
+            GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+            GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+            GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+        };
+
+        stbi_set_flip_vertically_on_load(false);
+        for (int i = 0; i < 6; i++) {
+            std::string path = std::string(ASSETS_DIR) + "skybox/" + faceNames[i] + ".png";
+            int w, h, ch;
+            unsigned char* data = stbi_load(path.c_str(), &w, &h, &ch, 3);
+            if (!data) return false; // Si falta alguna cara, fallback a procedural
+            glTexImage2D(targets[i], 0, GL_RGB8, w, h, 0,
+                         GL_RGB, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+        }
+        return true;
+    }
 };

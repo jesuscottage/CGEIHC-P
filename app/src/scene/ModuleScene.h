@@ -1,10 +1,10 @@
 #pragma once
-// ModuleScene.h — Fase 8: geometría animada + fauna decorativa estática
+// ModuleScene.h — Geometría animada + modelos reales + fauna decorativa
 // Cada módulo tiene su propia escena 3D que anima con animT (0→1).
-// Los modelos reales (GLTF/OBJ) se integrarán en Fases posteriores;
-// por ahora se usa geometría procedural (cubos, discos, conos de discos).
+// Los módulos con modelo GLB disponible lo usan; los demás usan geometría procedural.
 
 #include "graphics/Mesh.h"
+#include "graphics/Model.h"
 #include "graphics/Shader.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -12,11 +12,22 @@
 #include <string>
 #include <cmath>
 
+#ifndef ASSETS_DIR
+#define ASSETS_DIR "assets/"
+#endif
+
 class ModuleScene {
 public:
     void init() {
         mCube = makeCube();
         mDisc = makeDisc(1.0f, 24, 0.08f);
+        // Cargar modelos GLB si existen
+        mTreeModel.load(ASSETS_DIR "models/tree.glb");
+        mCarModel.load(ASSETS_DIR "models/electric_car.glb");
+        mBuildingA.load(ASSETS_DIR "models/building_a.glb");
+        mBuildingB.load(ASSETS_DIR "models/building_b.glb");
+        mBuildingC.load(ASSETS_DIR "models/building_c.glb");
+        mGlobeModel.load(ASSETS_DIR "models/globe.glb");
     }
 
     // Dibuja la escena de un módulo.
@@ -36,7 +47,12 @@ public:
         else if (id == "M5")     drawGlobe      (sh, center, animT, time);
     }
 
-    void free() { mCube.free(); mDisc.free(); }
+    void free() {
+        mCube.free(); mDisc.free();
+        mTreeModel.free(); mCarModel.free();
+        mBuildingA.free(); mBuildingB.free(); mBuildingC.free();
+        mGlobeModel.free();
+    }
 
     // ── Fauna decorativa estática ──────────────────────────────────────────
     // Dibuja la fauna en posiciones fijas del museo.
@@ -49,6 +65,7 @@ public:
 
 private:
     Mesh mCube, mDisc;
+    Model mTreeModel, mCarModel, mBuildingA, mBuildingB, mBuildingC, mGlobeModel;
 
     // ── Fauna helpers ──────────────────────────────────────────────────────
     void drawSeal(Shader& sh, glm::vec3 pos) {
@@ -196,27 +213,38 @@ private:
     void drawFlood(Shader& sh, glm::vec3 c, float t) {
         float waterY = glm::mix(-0.6f, 3.2f, t);
 
-        struct Bld { float ox, oz, h, w; };
-        Bld blds[] = {
-            {-1.4f, -0.6f, 3.8f, 0.9f},
-            { 0.2f,  0.7f, 2.2f, 0.8f},
-            { 1.5f, -0.2f, 5.0f, 0.75f},
-        };
-        glm::vec3 bldCol{0.62f, 0.56f, 0.50f};
-
-        for (auto& b : blds) {
-            // Edificio
-            col(sh, bldCol);
-            mdl(sh, TS({c.x + b.ox, c.y + b.h * 0.5f, c.z + b.oz}, {b.w, b.h, b.w}));
-            mCube.draw();
-            // Hilera de ventanas encendidas
-            col(sh, glm::vec3(0.95f, 0.85f, 0.4f));
-            mdl(sh, TS({c.x + b.ox, c.y + b.h - 0.35f, c.z + b.oz + b.w * 0.51f},
-                        {b.w * 0.65f, 0.09f, 0.04f}));
-            mCube.draw();
+        if (mBuildingA.loaded) {
+            // Usar modelos reales de edificios
+            float offsets[][2] = {{-1.4f, -0.6f}, {0.2f, 0.7f}, {1.5f, -0.2f}};
+            Model* bldModels[] = {&mBuildingA, &mBuildingB, &mBuildingC};
+            for (int i = 0; i < 3; i++) {
+                glm::mat4 m = glm::translate(glm::mat4(1.f),
+                    {c.x + offsets[i][0], c.y, c.z + offsets[i][1]});
+                m = glm::scale(m, glm::vec3(1.5f));
+                mdl(sh, m);
+                bldModels[i]->draw(sh);
+            }
+        } else {
+            // Fallback procedural
+            struct Bld { float ox, oz, h, w; };
+            Bld blds[] = {
+                {-1.4f, -0.6f, 3.8f, 0.9f},
+                { 0.2f,  0.7f, 2.2f, 0.8f},
+                { 1.5f, -0.2f, 5.0f, 0.75f},
+            };
+            glm::vec3 bldCol{0.62f, 0.56f, 0.50f};
+            for (auto& b : blds) {
+                col(sh, bldCol);
+                mdl(sh, TS({c.x + b.ox, c.y + b.h * 0.5f, c.z + b.oz}, {b.w, b.h, b.w}));
+                mCube.draw();
+                col(sh, glm::vec3(0.95f, 0.85f, 0.4f));
+                mdl(sh, TS({c.x + b.ox, c.y + b.h - 0.35f, c.z + b.oz + b.w * 0.51f},
+                            {b.w * 0.65f, 0.09f, 0.04f}));
+                mCube.draw();
+            }
         }
 
-        // Plano de agua
+        // Plano de agua (siempre procedural)
         if (waterY > -0.5f) {
             col(sh, glm::vec3(0.14f, 0.38f, 0.80f));
             mdl(sh, TS({c.x, c.y + waterY, c.z}, {7.0f, 0.16f, 7.0f}));
@@ -263,6 +291,14 @@ private:
         // Movimiento sinusoidal (solo cuando t > 0)
         float zOff = sinf(time * glm::pi<float>() / 3.0f) * 2.4f * t;
 
+        if (mCarModel.loaded) {
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z + zOff});
+            m = glm::scale(m, glm::vec3(2.0f)); // Kenney cars son ~1 unidad
+            mdl(sh, m);
+            mCarModel.draw(sh);
+            return;
+        }
+
         // Color: gris metálico → azul eléctrico vivo
         glm::vec3 carCol = glm::mix(
             glm::vec3(0.28f, 0.32f, 0.38f),
@@ -308,6 +344,15 @@ private:
     void drawTree(Shader& sh, glm::vec3 c, float t) {
         float s = glm::mix(0.02f, 1.0f, t); // factor de escala global
 
+        if (mTreeModel.loaded) {
+            // Modelo real: escalar con animT
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z});
+            m = glm::scale(m, glm::vec3(s * 3.0f)); // Kenney trees son ~1 unidad
+            mdl(sh, m);
+            mTreeModel.draw(sh);
+            return;
+        }
+        // Fallback procedural
         // Tronco
         col(sh, glm::vec3(0.42f, 0.28f, 0.13f));
         mdl(sh, TS({c.x, c.y + 1.7f * s, c.z}, {0.24f * s, 3.4f * s, 0.24f * s}));
@@ -331,21 +376,28 @@ private:
     void drawGlobe(Shader& sh, glm::vec3 c, float t, float time) {
         float rot = time * 18.0f; // 18°/s constante
 
-        // Océano
-        col(sh, glm::vec3(0.18f, 0.48f, 0.82f));
-        glm::mat4 gm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
-                                    glm::radians(rot), {0.f, 1.f, 0.f});
-        gm = glm::scale(gm, {2.6f, 2.6f, 2.6f});
-        mdl(sh, gm);
-        mCube.draw();
+        if (mGlobeModel.loaded) {
+            glm::mat4 gm = glm::translate(glm::mat4(1.f), {c.x, c.y + 3.2f, c.z});
+            gm = glm::rotate(gm, glm::radians(rot), {0.f, 1.f, 0.f});
+            gm = glm::scale(gm, glm::vec3(2.5f));
+            mdl(sh, gm);
+            mGlobeModel.draw(sh);
+        } else {
+            // Fallback: cubos como globo
+            col(sh, glm::vec3(0.18f, 0.48f, 0.82f));
+            glm::mat4 gm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
+                                        glm::radians(rot), {0.f, 1.f, 0.f});
+            gm = glm::scale(gm, {2.6f, 2.6f, 2.6f});
+            mdl(sh, gm);
+            mCube.draw();
 
-        // Continentes (capa superpuesta verde)
-        col(sh, glm::vec3(0.25f, 0.60f, 0.26f));
-        glm::mat4 cm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
-                                    glm::radians(rot + 55.f), {0.f, 1.f, 0.f});
-        cm = glm::scale(cm, {2.66f, 1.2f, 1.5f});
-        mdl(sh, cm);
-        mCube.draw();
+            col(sh, glm::vec3(0.25f, 0.60f, 0.26f));
+            glm::mat4 cm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
+                                        glm::radians(rot + 55.f), {0.f, 1.f, 0.f});
+            cm = glm::scale(cm, {2.66f, 1.2f, 1.5f});
+            mdl(sh, cm);
+            mCube.draw();
+        }
 
         // Líneas de acuerdos: discos que aparecen uno a uno con animT
         if (t > 0.05f) {
