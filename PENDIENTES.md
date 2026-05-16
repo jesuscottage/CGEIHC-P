@@ -2,7 +2,7 @@
 
 > Proyecto: Calentamiento global en el polo norte
 > Última actualización: 2026-05-16
-> Estado general: **Proyecto completo — Fases 0-11 + Assets + Reportes + Empaquetado ✅**
+> Estado general: **Proyecto con modelos 3D reales integrados — QA visual en progreso**
 
 ---
 
@@ -45,15 +45,42 @@
 
 ---
 
-## Prioridad Inmediata
+## Prioridad Inmediata — Bugs Visuales Pendientes
 
-- [x] **Integrar assets reales** — Completado 2026-05-16
-- [x] **Reportes académicos** — español + inglés en `docs/reports/`
-- [x] **Preparar empaquetado** — `dist/` listo con .exe + assets + shaders + README
+Estos bugs fueron identificados durante QA visual v2 y necesitan atención:
+
+### Bugs de Renderizado (afectan presentación)
+- [ ] **Techo invisible** — se ve el skybox al mirar arriba; el winding order del techo puede estar incorrecto o hay gaps entre paredes y techo
+- [ ] **Modelo wolf no renderiza** — Wolf_with_Animations.glb tiene skeletal animation que Assimp carga pero no se renderiza sin Animator; se usa Fox como sustituto temporal
+- [ ] **Letreros todavía visibles como líneas blancas** desde ciertos ángulos lejanos — considerar eliminarlos y usar solo ImGui
+- [ ] **Pato (Duck) como gaviota** — el modelo es amarillo brillante, poco coherente con estética ártica; considerar color override blanco
+
+### Mejoras Visuales Recomendadas
+- [ ] **Textura del techo** — actualmente usa baseColor gris plano; aplicar wallTex (concreto claro)
+- [ ] **Decoración adicional** — agregar rocas (rock.glb) como decoración en los corredores
+- [ ] **Turbina eólica sigue siendo procedural** — buscar modelo GLB de turbina
+- [ ] **Iluminación interior** — considerar agregar point lights por módulo para mejor visibilidad
+
+### Entregables Pendientes
 - [ ] **Crear instalador** con InstallForge GUI desde `dist/`
 - [ ] **Grabar video** con OBS + editar con DaVinci Resolve (guión en `docs/reports/guion-video.md`)
 - [ ] **Convertir reportes a PDF** (Pandoc/Word)
 - [ ] **Presentación oral**
+
+### Estado de Modelos 3D (2026-05-16)
+
+| Módulo | Modelo | Estado Visual |
+|--------|--------|--------------|
+| M1_IZQ Iceberg | cliff_rock.glb (Kenney) + color azul override | OK — roca azulada que encoge |
+| M2_IZQ Oso | fox.glb (KhronosGroup) + color blanco | OK — animal cuadrúpedo blanco |
+| M3_IZQ Edificios | building_a/b/c.glb (Kenney City) | OK — edificios reconocibles |
+| M1_DER Turbina | Procedural (cubos) | Aceptable — poste + palas |
+| M2_DER Auto | electric_car.glb (Kenney Car) | OK — sedan reconocible |
+| M3_DER Árbol | tree.glb (Kenney Nature) | OK — cono verde con tronco |
+| M5 Globo | DamagedHelmet.glb (KhronosGroup) | OK — esfera textorizada |
+| Fauna Zorro | fox.glb (KhronosGroup) | OK — zorro naranja |
+| Fauna Gaviota | duck.glb (KhronosGroup) | Funcional — pato amarillo |
+| Fauna Foca | Procedural (cubos) | Aceptable — forma alargada gris |
 
 ---
 
