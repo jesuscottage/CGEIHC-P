@@ -160,47 +160,30 @@ public:
         }
     }
 
-    // Letreros 3D de color — paneles flotantes sobre cada módulo
-    // Se dibujan como dos cubos en cruz (visibles desde cualquier ángulo)
+    // Letreros 3D de color — pequeños paneles sobre cada módulo
+    // Dos cubos en cruz para visibilidad desde cualquier ángulo
     void drawSigns(Shader& shader) {
         for (const auto& mod : modules) {
-            float halfW = (mod.id == "M5") ? 1.6f : 1.3f;
-            float signY  = 5.2f; // altura sobre el suelo
-            glm::vec3 sc = mod.labelColor;
+            float signW = (mod.id == "M5") ? 1.0f : 0.8f; // ancho del panel
+            float signH = 0.35f;   // alto del panel
+            float signD = 0.15f;   // grosor (antes 0.06 — ahora visible desde ángulos oblicuos)
+            float signY = 4.2f;    // altura — debajo del techo (6m), discreto
 
-            // Panel principal — orienta perpendicular al corredor
-            bool isLeft = (mod.center.x < 0);
-            glm::vec3 s1 = isLeft
-                ? glm::vec3(0.06f, 0.65f, halfW * 2)  // panel en eje Z para corredor izq
-                : glm::vec3(0.06f, 0.65f, halfW * 2);  // mismo para der
-            if (mod.id == "M5")
-                s1 = glm::vec3(halfW * 2, 0.65f, 0.06f); // M5 panel en eje X
-
-            auto mSign1 = glm::scale(
-                glm::translate(glm::mat4(1.f),
-                    {mod.center.x, signY, mod.center.z}), s1);
-            shader.setMat4("model", mSign1);
             shader.setBool("useTexture", false);
-            shader.setVec3("baseColor",  sc);
+            shader.setVec3("baseColor", mod.labelColor);
+
+            // Panel 1: orientado en Z
+            auto m1 = glm::scale(glm::translate(glm::mat4(1.f),
+                {mod.center.x, signY, mod.center.z}),
+                {signD, signH, signW});
+            shader.setMat4("model", m1);
             signCube.draw();
 
-            // Panel perpendicular (cruz) para visibilidad desde todos los ángulos
-            glm::vec3 s2 = (mod.id == "M5")
-                ? glm::vec3(0.06f, 0.65f, halfW * 2)
-                : glm::vec3(halfW * 2, 0.65f, 0.06f);
-            auto mSign2 = glm::scale(
-                glm::translate(glm::mat4(1.f),
-                    {mod.center.x, signY, mod.center.z}), s2);
-            shader.setMat4("model", mSign2);
-            signCube.draw();
-
-            // Marco superior: barra horizontal del mismo color pero más oscura
-            shader.setVec3("baseColor", sc * 0.65f);
-            auto mBar = glm::scale(
-                glm::translate(glm::mat4(1.f),
-                    {mod.center.x, signY + 0.42f, mod.center.z}),
-                glm::vec3(halfW * 2 + 0.2f, 0.08f, halfW * 2 + 0.2f));
-            shader.setMat4("model", mBar);
+            // Panel 2: orientado en X (cruz)
+            auto m2 = glm::scale(glm::translate(glm::mat4(1.f),
+                {mod.center.x, signY, mod.center.z}),
+                {signW, signH, signD});
+            shader.setMat4("model", m2);
             signCube.draw();
         }
     }
@@ -242,7 +225,8 @@ private:
             {{ 40,0,75}, {0,1,0}, {20,  40 }},
             {{-40,0,75}, {0,1,0}, {0,   40 }},
         };
-        std::vector<unsigned int> idx = {0,1,2, 0,2,3};
+        // CCW visto desde arriba (+Y) para que sea front-face con GL_CCW default
+        std::vector<unsigned int> idx = {0,2,1, 0,3,2};
         floorMesh.setup(verts, idx);
 
         // Techo: visto desde abajo (interior del museo)

@@ -56,13 +56,14 @@ struct TestConfig {
 // Posiciones de cámara para test mode: 3.5m al sur del centro de cada módulo
 // para que el objeto sea visible y la cámara esté dentro del trigger (radio 5m)
 static const std::map<std::string, glm::vec3> MODULE_POSITIONS = {
-    {"M1_IZQ", {-12.0f, 1.7f,  9.5f}},
-    {"M2_IZQ", {-12.0f, 1.7f, 24.5f}},
-    {"M3_IZQ", {-12.0f, 1.7f, 39.5f}},
-    {"M1_DER", { 12.0f, 1.7f,  9.5f}},
-    {"M2_DER", { 12.0f, 1.7f, 24.5f}},
-    {"M3_DER", { 12.0f, 1.7f, 39.5f}},
-    {"M5",     {  0.0f, 1.7f, 59.5f}},
+    {"VESTIBULO",{  0.0f, 1.7f,  2.0f}},
+    {"M1_IZQ",   {-12.0f, 1.7f,  9.5f}},
+    {"M2_IZQ",   {-12.0f, 1.7f, 24.5f}},
+    {"M3_IZQ",   {-12.0f, 1.7f, 39.5f}},
+    {"M1_DER",   { 12.0f, 1.7f,  9.5f}},
+    {"M2_DER",   { 12.0f, 1.7f, 24.5f}},
+    {"M3_DER",   { 12.0f, 1.7f, 39.5f}},
+    {"M5",       {  0.0f, 1.7f, 59.5f}},
 };
 
 TestConfig parseArgs(int argc, char** argv) {
@@ -192,9 +193,11 @@ int main(int argc, char** argv) {
     double cierreTimer   = 0.0;   // momento en que se entró al estado CIERRE
     int    modulesCompleted = 0;  // cuántos módulos han llegado a animT=1.0
 
-    const int   CAPTURE_FRAMES[] = {60, 300, 600};
+    // Multi-ángulo: frente, suelo, techo, animación media, animación final
+    const int   CAPTURE_FRAMES[] = {60, 90, 120, 300, 600};
+    const float CAPTURE_PITCH[]  = {0.f, -60.f, 45.f, 0.f, 0.f};
     const char* CAPTURE_NAMES[]  = {
-        "screenshot_f060.png", "screenshot_f300.png", "screenshot_f600.png"
+        "front.png", "floor.png", "ceil.png", "anim_mid.png", "anim_end.png"
     };
 
     std::string activeModuleName = "ninguno";
@@ -478,14 +481,17 @@ int main(int argc, char** argv) {
         window.swapBuffers();
         window.pollEvents();
 
-        // Capturas
-        for (int i = 0; i < 3; i++)
+        // Capturas multi-ángulo: rotar pitch antes de capturar
+        for (int i = 0; i < 5; i++) {
+            if (testCfg.enabled && frameCount == CAPTURE_FRAMES[i] - 1)
+                camera.pitch = CAPTURE_PITCH[i]; // preparar ángulo un frame antes
             if (frameCount == CAPTURE_FRAMES[i])
                 saveScreenshot(CAPTURE_NAMES[i], window.width(), window.height());
+        }
         if (frameCount == 600)
             saveStateJSON(frameCount, currentFPS, camera.position, activeModuleName, activeModuleT);
 
-        if (frameCount >= 600) state = AppState::SALIR;
+        if (frameCount >= 620) state = AppState::SALIR;
         if (state == AppState::SALIR) window.close();
 
         fpsFrames++;
