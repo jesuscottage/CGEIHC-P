@@ -40,13 +40,16 @@ void main() {
     // Simula cielo ártico (azul frío arriba) + albedo del hielo reflejado (abajo).
     // hemi=1 para superficies mirando al cielo, hemi=0 mirando al suelo.
     float hemi      = 0.5 + 0.5 * dot(norm, vec3(0.0, 1.0, 0.0));
-    vec3 skyColor   = vec3(0.42f, 0.52f, 0.68f); // azul ártico
-    vec3 groundColor= vec3(0.52f, 0.58f, 0.62f); // blanco-gris del hielo
-    vec3 ambLight   = mix(groundColor, skyColor, hemi) * 0.62;
+    vec3 skyColor   = vec3(0.60f, 0.70f, 0.85f); // azul claro ártico
+    vec3 groundColor= vec3(0.70f, 0.75f, 0.80f); // reflejo del hielo
+    vec3 ambLight   = mix(groundColor, skyColor, hemi) * 1.0; // museo bien iluminado
 
-    // ── Difuso Blinn-Phong ────────────────────────────────────────────────
+    // ── Difuso Blinn-Phong + fill light ─────────────────────────────────
     float NdotL  = max(dot(norm, ldir), 0.0);
-    vec3  diffuse = NdotL * lightColor;
+    // Fill light desde abajo-frente para iluminar paredes interiores
+    vec3 fillDir = normalize(vec3(0.0, 0.5, -1.0));
+    float NdotFill = max(dot(norm, fillDir), 0.0);
+    vec3  diffuse = (NdotL + NdotFill * 0.35) * lightColor;
 
     // ── Especular Blinn-Phong + Fresnel ───────────────────────────────────
     float NdotH  = max(dot(norm, halfDir), 0.0);

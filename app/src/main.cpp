@@ -176,10 +176,10 @@ int main(int argc, char** argv) {
     whiteTex.loadWhite();
 
     // ── Uniforms globales ──────────────────────
-    const glm::vec3 LIGHT_DIR   = glm::normalize(glm::vec3(-0.3f, -0.8f,  0.2f));
-    const glm::vec3 LIGHT_COLOR = glm::vec3(1.0f,  0.95f, 0.85f);
-    const glm::vec3 FOG_COLOR   = glm::vec3(0.65f, 0.75f, 0.85f);
-    const float     FOG_DENSITY = 0.012f;
+    const glm::vec3 LIGHT_DIR   = glm::normalize(glm::vec3(-0.2f, -0.7f,  0.3f));
+    const glm::vec3 LIGHT_COLOR = glm::vec3(1.0f,  0.97f, 0.90f);
+    const glm::vec3 FOG_COLOR   = glm::vec3(0.72f, 0.80f, 0.88f);
+    const float     FOG_DENSITY = 0.006f; // reducida para ver más lejos dentro del museo
 
     // En test mode se salta la pantalla de título para que las activaciones
     // de módulos por frame ocurran desde el frame 0 en estado JUGANDO
@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
 
     // Multi-ángulo: frente, suelo, techo, animación media, animación final
     const int   CAPTURE_FRAMES[] = {60, 90, 120, 300, 600};
-    const float CAPTURE_PITCH[]  = {0.f, -60.f, 45.f, 0.f, 0.f};
+    const float CAPTURE_PITCH[]  = {0.f, -80.f, 60.f, 0.f, 0.f};
     const char* CAPTURE_NAMES[]  = {
         "front.png", "floor.png", "ceil.png", "anim_mid.png", "anim_end.png"
     };
@@ -230,6 +230,17 @@ int main(int argc, char** argv) {
                 camera.processInput(input, dt);
                 // AABB: límites del museo
                 camera.clampPosition(-19.5f, 19.5f, -4.5f, 74.5f);
+                // Multi-ángulo QA: forzar pitch para capturas
+                if (testCfg.enabled) {
+                    for (int i = 0; i < 5; i++) {
+                        if (frameCount == CAPTURE_FRAMES[i]) {
+                            camera.pitch = CAPTURE_PITCH[i];
+                            printf("[QA] frame=%d pitch=%.1f\n", frameCount, CAPTURE_PITCH[i]);
+                        }
+                        if (frameCount == CAPTURE_FRAMES[i] + 1 && CAPTURE_PITCH[i] != 0.f)
+                            camera.pitch = 0.f;
+                    }
+                }
 
                 museum.update(dt);
                 snow.update(dt, (float)glfwGetTime());
@@ -478,16 +489,14 @@ int main(int argc, char** argv) {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        window.swapBuffers();
-        window.pollEvents();
-
-        // Capturas multi-ángulo: rotar pitch antes de capturar
+        // Capturas ANTES de swap (glReadPixels del back buffer renderizado)
         for (int i = 0; i < 5; i++) {
-            if (testCfg.enabled && frameCount == CAPTURE_FRAMES[i] - 1)
-                camera.pitch = CAPTURE_PITCH[i]; // preparar ángulo un frame antes
-            if (frameCount == CAPTURE_FRAMES[i])
+            if (testCfg.enabled && frameCount == CAPTURE_FRAMES[i])
                 saveScreenshot(CAPTURE_NAMES[i], window.width(), window.height());
         }
+
+        window.swapBuffers();
+        window.pollEvents();
         if (frameCount == 600)
             saveStateJSON(frameCount, currentFPS, camera.position, activeModuleName, activeModuleT);
 

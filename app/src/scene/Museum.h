@@ -89,8 +89,9 @@ public:
         buildPlatforms();
         signCube = makeCube();
         // Cargar texturas (fallback: si no existe, Texture::load retorna false y se usa baseColor)
-        floorTex.load(ASSETS_DIR "textures/floor.png");
-        wallTex.load(ASSETS_DIR "textures/wall.png");
+        // Paredes claras (Concrete034 claro), suelo más oscuro (Concrete040)
+        floorTex.load(ASSETS_DIR "textures/wall.png");   // concreto oscuro para suelo
+        wallTex.load(ASSETS_DIR "textures/floor.png");    // concreto claro para paredes
         iceTex.load(ASSETS_DIR "textures/ice.png");
     }
 
@@ -113,7 +114,7 @@ public:
             if (floorTex.id) {
                 shader.setBool("useTexture", true);
                 floorTex.bind(0);
-                shader.setInt("texDiffuse", 0);
+                shader.setInt("diffuseMap", 0);
             } else {
                 shader.setBool("useTexture", false);
                 shader.setVec3("baseColor", glm::vec3(0.82f, 0.90f, 0.96f));
@@ -136,7 +137,7 @@ public:
             if (wallTex.id) {
                 shader.setBool("useTexture", true);
                 wallTex.bind(0);
-                shader.setInt("texDiffuse", 0);
+                shader.setInt("diffuseMap", 0);
             } else {
                 shader.setBool("useTexture", false);
                 shader.setVec3("baseColor", w.color);
@@ -151,7 +152,7 @@ public:
             if (iceTex.id) {
                 shader.setBool("useTexture", true);
                 iceTex.bind(0);
-                shader.setInt("texDiffuse", 0);
+                shader.setInt("diffuseMap", 0);
             } else {
                 shader.setBool("useTexture", false);
                 shader.setVec3("baseColor", glm::vec3(0.60f, 0.80f, 0.95f));
@@ -220,10 +221,10 @@ private:
         // Suelo grande: cubre toda la T (vestíbulo + corredores + sala M5)
         // 80×80 m con centro en (0, 0, 35) → de Z=-5 a Z=75, X=-40 a X=40
         std::vector<Vertex> verts = {
-            {{-40,0,-5}, {0,1,0}, {0,   0  }},
-            {{ 40,0,-5}, {0,1,0}, {20,  0  }},
-            {{ 40,0,75}, {0,1,0}, {20,  40 }},
-            {{-40,0,75}, {0,1,0}, {0,   40 }},
+            {{-40,0,-5}, {0,1,0}, {0,  0 }},
+            {{ 40,0,-5}, {0,1,0}, {8,  0 }},
+            {{ 40,0,75}, {0,1,0}, {8, 16 }},
+            {{-40,0,75}, {0,1,0}, {0, 16 }},
         };
         // CCW visto desde arriba (+Y) para que sea front-face con GL_CCW default
         std::vector<unsigned int> idx = {0,2,1, 0,3,2};
@@ -234,11 +235,12 @@ private:
         // el winding debe ser CW desde arriba = CCW desde abajo.
         std::vector<Vertex> cVerts = {
             {{-40,0,-5}, {0,-1,0}, {0,  0 }},
-            {{-40,0,75}, {0,-1,0}, {0,  40}},
-            {{ 40,0,75}, {0,-1,0}, {20, 40}},
-            {{ 40,0,-5}, {0,-1,0}, {20, 0 }},
+            {{-40,0,75}, {0,-1,0}, {0, 16 }},
+            {{ 40,0,75}, {0,-1,0}, {8, 16 }},
+            {{ 40,0,-5}, {0,-1,0}, {8,  0 }},
         };
-        std::vector<unsigned int> cIdx = {0,1,2, 0,2,3};
+        // CCW visto desde abajo (-Y) para front-face con GL_CCW default
+        std::vector<unsigned int> cIdx = {0,2,1, 0,3,2};
         ceilingMesh.setup(cVerts, cIdx);
     }
 
@@ -255,7 +257,7 @@ private:
             walls.push_back(std::move(w));
         };
 
-        glm::vec3 wallColor{0.50f, 0.58f, 0.65f}; // gris azulado ártico
+        glm::vec3 wallColor{0.72f, 0.76f, 0.80f}; // gris claro ártico (museo iluminado)
 
         // ── Vestíbulo ──────────────────────────────────────
         // Pared frontal (Z=-5, cara de entrada)

@@ -21,13 +21,18 @@ public:
     void init() {
         mCube = makeCube();
         mDisc = makeDisc(1.0f, 24, 0.08f);
-        // Cargar modelos GLB si existen
+        // Modelos de módulos
         mTreeModel.load(ASSETS_DIR "models/tree.glb");
         mCarModel.load(ASSETS_DIR "models/electric_car.glb");
         mBuildingA.load(ASSETS_DIR "models/building_a.glb");
         mBuildingB.load(ASSETS_DIR "models/building_b.glb");
         mBuildingC.load(ASSETS_DIR "models/building_c.glb");
         mGlobeModel.load(ASSETS_DIR "models/globe.glb");
+        mIcebergModel.load(ASSETS_DIR "models/iceberg.glb");
+        mBearModel.load(ASSETS_DIR "models/polar_bear.glb");
+        // Fauna
+        mFoxModel.load(ASSETS_DIR "models/fox.glb");
+        mBirdModel.load(ASSETS_DIR "models/seagull.glb");
     }
 
     // Dibuja la escena de un módulo.
@@ -51,21 +56,42 @@ public:
         mCube.free(); mDisc.free();
         mTreeModel.free(); mCarModel.free();
         mBuildingA.free(); mBuildingB.free(); mBuildingC.free();
-        mGlobeModel.free();
+        mGlobeModel.free(); mIcebergModel.free(); mBearModel.free();
+        mFoxModel.free(); mBirdModel.free();
     }
 
     // ── Fauna decorativa estática ──────────────────────────────────────────
     // Dibuja la fauna en posiciones fijas del museo.
     // Llamar una vez por frame después de dibujar los módulos.
     void drawFauna(Shader& sh) {
-        drawSeal(sh,     {-15.0f, 0.0f, 25.0f}); // foca cerca de M2_IZQ
-        drawArcticFox(sh, {-17.5f, 0.0f,  5.5f}); // zorro ártico en el corredor izq
-        drawSeagull(sh,   { -8.0f, 3.8f, 31.0f}); // gaviota volando cerca de M2_IZQ
+        // Zorro ártico (modelo Fox de KhronosGroup)
+        if (mFoxModel.loaded) {
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {-17.5f, 0.0f, 5.5f});
+            m = glm::scale(m, glm::vec3(0.015f)); // Fox model es ~100 unidades
+            mdl(sh, m);
+            mFoxModel.draw(sh);
+        } else {
+            drawArcticFox(sh, {-17.5f, 0.0f, 5.5f});
+        }
+
+        // Gaviota/pato (modelo Duck de KhronosGroup)
+        if (mBirdModel.loaded) {
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {-8.0f, 0.0f, 31.0f});
+            m = glm::scale(m, glm::vec3(0.012f)); // Duck es ~150 unidades
+            mdl(sh, m);
+            mBirdModel.draw(sh);
+        } else {
+            drawSeagull(sh, {-8.0f, 3.8f, 31.0f});
+        }
+
+        // Foca (usa procedural — no encontramos modelo CC0)
+        drawSeal(sh, {-15.0f, 0.0f, 25.0f});
     }
 
 private:
     Mesh mCube, mDisc;
     Model mTreeModel, mCarModel, mBuildingA, mBuildingB, mBuildingC, mGlobeModel;
+    Model mIcebergModel, mBearModel, mFoxModel, mBirdModel;
 
     // ── Fauna helpers ──────────────────────────────────────────────────────
     void drawSeal(Shader& sh, glm::vec3 pos) {
@@ -153,6 +179,16 @@ private:
     void drawIceberg(Shader& sh, glm::vec3 c, float t) {
         float sx = glm::mix(3.5f, 0.5f, t);
         float sy = glm::mix(2.8f, 0.2f, t);
+
+        if (mIcebergModel.loaded) {
+            // Roca como iceberg — escala decrece con animT
+            col(sh, glm::mix(glm::vec3(0.78f, 0.92f, 1.0f), glm::vec3(0.35f, 0.60f, 0.82f), t));
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z});
+            m = glm::scale(m, glm::vec3(sx, sy, sx * 0.85f));
+            mdl(sh, m);
+            mIcebergModel.draw(sh);
+            return;
+        }
         glm::vec3 iceCol = glm::mix(
             glm::vec3(0.78f, 0.92f, 1.00f),
             glm::vec3(0.35f, 0.60f, 0.82f), t);
@@ -183,28 +219,24 @@ private:
     void drawIceFloe(Shader& sh, glm::vec3 c, float t) {
         float iceR = glm::mix(4.8f, 0.25f, t);
 
-        // Disco de hielo
+        // Disco de hielo (procedural — siempre)
         col(sh, glm::vec3(0.88f, 0.95f, 1.0f));
         glm::mat4 dm = glm::scale(T({c.x, c.y + 0.08f, c.z}), {iceR, 1.f, iceR});
         mdl(sh, dm);
         mDisc.draw();
 
-        // Oso polar — cuerpo (siempre visible)
-        col(sh, glm::vec3(0.96f, 0.97f, 1.00f));
-        mdl(sh, TS({c.x, c.y + 0.55f, c.z}, {0.5f, 0.55f, 0.75f}));
-        mCube.draw();
-
-        // Cabeza
-        col(sh, glm::vec3(1.0f, 1.0f, 1.0f));
-        mdl(sh, TS({c.x, c.y + 1.02f, c.z + 0.32f}, {0.28f, 0.28f, 0.28f}));
-        mCube.draw();
-
-        // Patas delanteras
-        col(sh, glm::vec3(0.94f, 0.96f, 1.0f));
-        mdl(sh, TS({c.x - 0.28f, c.y + 0.18f, c.z + 0.3f}, {0.12f, 0.35f, 0.15f}));
-        mCube.draw();
-        mdl(sh, TS({c.x + 0.28f, c.y + 0.18f, c.z + 0.3f}, {0.12f, 0.35f, 0.15f}));
-        mCube.draw();
+        // Oso polar (modelo wolf como sustituto)
+        if (mBearModel.loaded) {
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z});
+            m = glm::scale(m, glm::vec3(0.8f));
+            mdl(sh, m);
+            mBearModel.draw(sh);
+        } else {
+            // Fallback procedural
+            col(sh, glm::vec3(0.96f, 0.97f, 1.00f));
+            mdl(sh, TS({c.x, c.y + 0.55f, c.z}, {0.5f, 0.55f, 0.75f}));
+            mCube.draw();
+        }
     }
 
     // ── M3_IZQ: Edificios que se inundan ──────────────────────────────────
@@ -377,8 +409,14 @@ private:
     void drawGlobe(Shader& sh, glm::vec3 c, float t, float time) {
         float rot = time * 18.0f; // 18°/s constante
 
-        // Siempre usar procedural — el modelo CarbonFibre usa PBR iridiscente incompatible
-        {
+        if (mGlobeModel.loaded) {
+            // DamagedHelmet como globo terráqueo (esfera textorizada)
+            glm::mat4 gm = glm::translate(glm::mat4(1.f), {c.x, c.y + 3.2f, c.z});
+            gm = glm::rotate(gm, glm::radians(rot), {0.f, 1.f, 0.f});
+            gm = glm::scale(gm, glm::vec3(1.8f));
+            mdl(sh, gm);
+            mGlobeModel.draw(sh);
+        } else {
             // Fallback: cubos como globo
             col(sh, glm::vec3(0.18f, 0.48f, 0.82f));
             glm::mat4 gm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
