@@ -1,4 +1,4 @@
-// main.cpp — Fase 7A: Skybox cubemap ártico procedural
+// main.cpp — Fase 7B: Agua ártica con olas sinusoidales + Fresnel
 
 #include "glad/glad.h"
 #include "core/Window.h"
@@ -131,10 +131,11 @@ int main(int argc, char** argv) {
     ImGui_ImplOpenGL3_Init("#version 330");
 
     // ── Shaders ───────────────────────────────
-    Shader stdShader, unlitShader, skyboxShader;
+    Shader stdShader, unlitShader, skyboxShader, waterShader;
     if (!stdShader.load(SHADERS_DIR "standard.vert", SHADERS_DIR "standard.frag")) return -1;
     if (!unlitShader.load(SHADERS_DIR "unlit.vert",  SHADERS_DIR "unlit.frag"))    return -1;
     if (!skyboxShader.load(SHADERS_DIR "skybox.vert", SHADERS_DIR "skybox.frag"))  return -1;
+    if (!waterShader.load(SHADERS_DIR "water.vert",   SHADERS_DIR "water.frag"))   return -1;
 
     // ── Museo ─────────────────────────────────
     Museum museum;
@@ -147,6 +148,10 @@ int main(int argc, char** argv) {
     // ── Skybox ártico ─────────────────────────
     Skybox skybox;
     skybox.init();
+
+    // ── Plano de agua exterior ─────────────────
+    // Grid 200×200m centrado en (0, -0.3, 35) — océano Ártico rodeando el museo
+    Mesh waterMesh = makeGrid(200.f, 200.f, 60, 60, 0.04f);
 
     // ── Texturas placeholder ───────────────────
     Texture whiteTex;
@@ -292,6 +297,32 @@ int main(int argc, char** argv) {
                 moduleScene.draw(stdShader, mod.id, mod.center, mod.animT, totalTime);
             }
 
+            // ── Agua ártica (semitransparente — blend antes del skybox) ──────
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glDepthMask(GL_FALSE); // no escribir en depth — transparente
+
+            waterShader.use();
+            waterShader.setMat4("view",        view);
+            waterShader.setMat4("projection",  proj);
+            waterShader.setVec3("viewPos",     camera.position);
+            waterShader.setVec3("lightDir",    LIGHT_DIR);
+            waterShader.setVec3("lightColor",  LIGHT_COLOR);
+            waterShader.setFloat("fogDensity", FOG_DENSITY);
+            waterShader.setVec3("fogColor",    FOG_COLOR);
+            waterShader.setFloat("waveAmp",    0.18f);
+            waterShader.setFloat("waveSpeed",  0.9f);
+            waterShader.setFloat("waveFreq",   0.35f);
+            waterShader.setFloat("time",       totalTime);
+            // Model: centrado en (0, -0.3, 35) para rodear el museo
+            glm::mat4 waterModel = glm::translate(glm::mat4(1.0f),
+                                       glm::vec3(0.0f, -0.3f, 35.0f));
+            waterShader.setMat4("model", waterModel);
+            waterMesh.draw();
+
+            glDepthMask(GL_TRUE);
+            glDisable(GL_BLEND);
+
             // Skybox — renderizar AL FINAL para aprovechar el early-z
             // (el truco xyww hace que todos los fragmentos del skybox tengan z=1.0)
             skybox.draw(skyboxShader, view, proj);
@@ -328,6 +359,7 @@ int main(int argc, char** argv) {
     museum.free();
     moduleScene.free();
     skybox.free();
+    waterMesh.free();
     whiteTex.free();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

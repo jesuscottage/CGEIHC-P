@@ -128,6 +128,41 @@ inline Mesh makeDisc(float radius = 1.0f, int segments = 24, float height = 0.1f
     Mesh m; m.setup(verts, idx); return m;
 }
 
+// Grid horizontal subdividido en XZ — para desplazamiento de vértices en el shader de agua
+// sizeX/sizeZ: tamaño en metros; segsX/segsZ: número de subdivisiones
+inline Mesh makeGrid(float sizeX = 100.f, float sizeZ = 100.f,
+                     int segsX = 40, int segsZ = 40,
+                     float uvScale = 0.05f)
+{
+    std::vector<Vertex> verts;
+    std::vector<unsigned int> idx;
+    verts.reserve((size_t)(segsX + 1) * (segsZ + 1));
+
+    for (int z = 0; z <= segsZ; z++) {
+        for (int x = 0; x <= segsX; x++) {
+            float fx = ((float)x / segsX - 0.5f) * sizeX;
+            float fz = ((float)z / segsZ - 0.5f) * sizeZ;
+            Vertex v;
+            v.position  = {fx, 0.0f, fz};
+            v.normal    = {0.0f, 1.0f, 0.0f};
+            v.texCoords = {fx * uvScale, fz * uvScale};
+            verts.push_back(v);
+        }
+    }
+
+    for (int z = 0; z < segsZ; z++) {
+        for (int x = 0; x < segsX; x++) {
+            unsigned int tl = (unsigned int)(z * (segsX + 1) + x);
+            unsigned int tr = tl + 1;
+            unsigned int bl = tl + (unsigned int)(segsX + 1);
+            unsigned int br = bl + 1;
+            idx.insert(idx.end(), {tl, bl, tr, tr, bl, br});
+        }
+    }
+
+    Mesh m; m.setup(verts, idx); return m;
+}
+
 // Cubo unitario centrado en el origen (1x1x1)
 inline Mesh makeCube() {
     std::vector<Vertex> verts = {
