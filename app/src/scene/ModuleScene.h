@@ -181,12 +181,13 @@ private:
         float sy = glm::mix(2.8f, 0.2f, t);
 
         if (mIcebergModel.loaded) {
-            // Roca como iceberg — escala decrece con animT
-            col(sh, glm::mix(glm::vec3(0.78f, 0.92f, 1.0f), glm::vec3(0.35f, 0.60f, 0.82f), t));
+            // Roca Kenney como iceberg — forzar color azul hielo
+            glm::vec3 iceCol = glm::mix(glm::vec3(0.78f, 0.92f, 1.0f), glm::vec3(0.35f, 0.60f, 0.82f), t);
+            float s = glm::mix(1.2f, 0.15f, t);
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z});
-            m = glm::scale(m, glm::vec3(sx, sy, sx * 0.85f));
+            m = glm::scale(m, glm::vec3(s * 1.5f, s, s * 1.3f));
             mdl(sh, m);
-            mIcebergModel.draw(sh);
+            mIcebergModel.draw(sh, &iceCol); // forzar color azul
             return;
         }
         glm::vec3 iceCol = glm::mix(
@@ -225,12 +226,13 @@ private:
         mdl(sh, dm);
         mDisc.draw();
 
-        // Oso polar (modelo wolf como sustituto)
-        if (mBearModel.loaded) {
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z});
-            m = glm::scale(m, glm::vec3(0.8f));
+        // Oso polar: usar Fox model con color blanco (wolf tiene skeletal anim incompatible)
+        if (mFoxModel.loaded) {
+            glm::vec3 white(0.95f, 0.97f, 1.0f);
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z + 0.3f});
+            m = glm::scale(m, glm::vec3(0.02f)); // Fox es ~100 unidades, escalar a ~2m
             mdl(sh, m);
-            mBearModel.draw(sh);
+            mFoxModel.draw(sh, &white);
         } else {
             // Fallback procedural
             col(sh, glm::vec3(0.96f, 0.97f, 1.00f));
@@ -323,10 +325,9 @@ private:
         float zOff = sinf(time * glm::pi<float>() / 3.0f) * 2.4f * t;
 
         if (mCarModel.loaded) {
-            // Kenney sedan-sports: ~2 unidades largo, 0.7 alto. Escalar a ~3m largo
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z + zOff});
-            m = glm::rotate(m, glm::radians(90.f), {0.f, 1.f, 0.f}); // orientar hacia la cámara
-            m = glm::scale(m, glm::vec3(1.5f));
+            m = glm::rotate(m, glm::radians(90.f), {0.f, 1.f, 0.f});
+            m = glm::scale(m, glm::vec3(0.8f)); // Kenney car ~2 unidades → ~1.6m
             mdl(sh, m);
             mCarModel.draw(sh);
             return;

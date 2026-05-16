@@ -69,9 +69,13 @@ public:
     }
 
     // Dibujar con el shader ya activo (caller setea model matrix)
-    void draw(Shader& shader) const {
+    // Si overrideColor != nullptr, forzar ese color en vez del material del modelo
+    void draw(Shader& shader, const glm::vec3* overrideColor = nullptr) const {
         for (const auto& mm : meshes) {
-            if (mm.hasTexture) {
+            if (overrideColor) {
+                shader.setBool("useTexture", false);
+                shader.setVec3("baseColor", *overrideColor);
+            } else if (mm.hasTexture) {
                 mm.diffuse.bind(0);
                 shader.setInt("diffuseMap", 0);
                 shader.setBool("useTexture", true);
