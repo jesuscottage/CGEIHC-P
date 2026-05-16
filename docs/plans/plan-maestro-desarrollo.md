@@ -444,6 +444,101 @@ cmake --build build --config Debug --parallel
 
 ---
 
+## Fase 0B — Base de Código de Referencia
+
+**Objetivo**: Catalogar proyectos de código abierto funcionales en OpenGL C++ antes de codificar cualquier subsistema. Partir de código verificado reduce iteraciones de debugging de decenas a pocas.
+
+**Cuándo ejecutar**: En paralelo con la Fase 0 o inmediatamente después, antes de escribir cualquier código del proyecto.
+
+**Herramientas**: `WebSearch` para encontrar, `WebFetch` para inspeccionar código antes de registrar.
+
+### Por qué es crítico
+
+Implementar un shader de agua, un sistema de partículas o una animación LERP desde cero conlleva decenas de ciclos `código → screenshot → error → corrección`. Con código funcional de referencia ese ciclo se convierte en `adaptar → integrar → verificar`. El objetivo no es copiar — es partir de algo que ya funciona y adaptarlo al stack y convenciones de este proyecto.
+
+### Proceso de catalogación
+
+```
+1. Buscar por categoría con los términos de la tabla
+2. Inspeccionar el repo con WebFetch — verificar que el código compila y usa OpenGL 3.3 Core
+3. Registrar en docs/knowledge/technology/proyectos-referencia.md con el fragmento específico útil
+4. Anotar en la fase correspondiente del plan: "Ver referencia R-NN"
+```
+
+### Categorías a investigar
+
+| Categoría | Términos de búsqueda sugeridos | Fase destino |
+|-----------|-------------------------------|--------------|
+| OpenGL 3.3 C++ estructura general | `"OpenGL 3.3 core C++ github Shader Mesh Camera"` | 1-3 |
+| Blinn-Phong + Fresnel GLSL | `"Blinn-Phong Fresnel OpenGL 3.3 fragment shader"` | 6, 7B |
+| Agua: vertex displacement seno | `"water shader vertex displacement sine OpenGL GLSL"` | 7B |
+| Skybox cubemap C++ | `"skybox cubemap OpenGL C++ GLFW tutorial"` | 7A |
+| Niebla exponencial en fragment | `"exponential fog shader OpenGL GLSL fragment"` | 7A |
+| Partículas billboard nieve | `"billboard particle snow OpenGL C++ quad"` | 8 |
+| Animación LERP keyframe C++ | `"LERP scale animation OpenGL C++ trigger event"` | 5 |
+| Assimp GLTF C++ completo | `"Assimp GLTF OpenGL C++ Model loading example"` | 3 |
+| Dear ImGui HUD OpenGL | `"Dear ImGui OpenGL GLFW HUD game C++ example"` | 2, 9 |
+| stb_truetype atlas rangos | `"stb_truetype PackFontRanges OpenGL texture atlas C++"` | 9 |
+| miniaudio audio 3D posicional | `"miniaudio 3D spatial audio C example ma_sound"` | 9 |
+| Recorrido FPS interior OpenGL | `"OpenGL first person room walkthrough AABB collision C++"` | 4-5 |
+
+### Tareas
+
+#### 0B.1 Investigar y catalogar (mínimo 2 proyectos por categoría)
+
+Para cada categoría de la tabla:
+1. Ejecutar `WebSearch` con los términos sugeridos
+2. Identificar los 2 mejores resultados (código limpio, OpenGL 3.3 Core, C++17 compatible)
+3. Inspeccionar con `WebFetch` el archivo más relevante del repo
+4. Registrar en `docs/knowledge/technology/proyectos-referencia.md` con:
+   - URL del repositorio
+   - Fragmento o clase específica útil
+   - Fase del plan donde se usará
+
+#### 0B.2 Referenciar desde el plan
+
+Una vez catalogados, agregar en cada sección de fase del plan un bloque:
+```
+> **Código de referencia**: Ver R-NN en `docs/knowledge/technology/proyectos-referencia.md`
+```
+Esto permite que Claude, al llegar a esa fase, tenga una referencia directa al código verificado antes de escribir la primera línea.
+
+#### 0B.3 Mantener el catálogo vivo
+
+Durante las fases 1-11, si se encuentra un fragmento de código especialmente útil o una solución elegante, agregarlo al catálogo con la fecha y la fase que lo encontró. El catálogo mejora a medida que avanza el proyecto.
+
+### Criterio de salida
+
+- [ ] Al menos 2 proyectos registrados en cada una de las 12 categorías
+- [ ] Cada entrada en `proyectos-referencia.md` tiene: URL, fragmento específico, fase destino
+- [ ] Al menos 2 proyectos registrados en cada una de las 12 categorías
+- [ ] Cada entrada en `proyectos-referencia.md` tiene: URL, fragmento específico, fase destino
+- [ ] Las fases 1-11 del plan tienen su bloque "Código de referencia" actualizado
+
+---
+
+## Mapa de Referencias por Fase
+
+> **Este mapa se llena durante la Fase 0B.** Claude actualiza cada fila con las entradas R-NN del catálogo encontradas para esa fase.
+> Cuando estés en una fase, consulta aquí antes de implementar cualquier tarea compleja.
+
+| Fase | Categoría principal | Referencias (llenar en Fase 0B) |
+|------|--------------------|---------------------------------|
+| Fase 1 — Motor Core | OpenGL general, Camera FPS | — |
+| Fase 2 — Render básico | Shader/Mesh/Texture, Dear ImGui debug | — |
+| Fase 3 — Assimp | Assimp GLTF C++ | — |
+| Fase 4 — Layout museo | Recorrido FPS interior, AABB colisiones | — |
+| Fase 5 — Módulos | Animaciones LERP keyframe, trigger de proximidad | — |
+| Fase 6 — Blinn-Phong | Iluminación Blinn-Phong, Fresnel | — |
+| Fase 7A — Skybox | Skybox cubemap, niebla exponencial | — |
+| Fase 7B — Agua | Shader agua vertex displacement, Fresnel | — |
+| Fase 8 — Efectos | Partículas billboard, nieve, fauna | — |
+| Fase 9 — UI/Audio | ImGui HUD, stb_truetype glifos, miniaudio 3D | — |
+| Fase 10 — Integración | AppState, flujo narrativo completo | — |
+| Fase 11 — QA | RenderDoc leaks, Release packaging | — |
+
+---
+
 ## Fase 1 — Motor Core y Ventana
 
 **Objetivo**: Contexto OpenGL 3.3 estable, loop principal con `AppState`, cámara FPS funcional, y sistema de screenshot autónomo operativo.

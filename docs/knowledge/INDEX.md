@@ -23,6 +23,7 @@
 | T-003 | `technology/materiales-curso.md` | Materiales del Curso CGEIHC 2026-2 | 2026-05-15 | Syllabus completo (8 temas), bibliografía oficial, shaders de ejemplo del profesor (ondas + Fresnel), evaluación del curso |
 | T-004 | `../../INFRAESTRUCTURA.md` | Infraestructura y Stack Técnico | 2026-05-15 | Stack completo: OpenGL/GLAD/GLFW/GLM/Assimp/ImGui/OpenAL, pipeline de assets, herramientas de desarrollo autónomo con Claude Code, arquitectura del motor, optimizaciones |
 | T-005 | `technology/fuentes-datos-museo.md` | Investigación de Fuentes — Datos Científicos del Museo | 2026-05-15 | Hallazgos y correcciones de investigación web: hielo marino (NSIDC/PIOMAS), osos polares (IUCN), nivel del mar (USGS/NOAA/IPCC), renovables (IEA), transporte (IEA), sumideros (GCP), acuerdos (UNEP). URLs de referencia rápida. |
+| T-006 | `technology/proyectos-referencia.md` | Proyectos de Referencia — Base de Código OpenGL C++ | 2026-05-16 | Catálogo de proyectos y fragmentos de código verificados por categoría: iluminación, agua, skybox, partículas, animaciones LERP, Assimp, ImGui, stb_truetype, miniaudio, museo FPS. Se llena en Fase 0B y se enriquece durante el desarrollo. |
 
 ---
 
