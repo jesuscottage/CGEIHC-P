@@ -1,4 +1,4 @@
-// main.cpp — Fase 7B: Agua ártica con olas sinusoidales + Fresnel
+// main.cpp — Fase 8: Partículas de nieve (billboards) + fauna decorativa
 
 #include "glad/glad.h"
 #include "core/Window.h"
@@ -12,6 +12,7 @@
 #include "graphics/Skybox.h"
 #include "scene/Museum.h"
 #include "scene/ModuleScene.h"
+#include "scene/SnowSystem.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -153,6 +154,10 @@ int main(int argc, char** argv) {
     // Grid 200×200m centrado en (0, -0.3, 35) — océano Ártico rodeando el museo
     Mesh waterMesh = makeGrid(200.f, 200.f, 60, 60, 0.04f);
 
+    // ── Sistema de nieve ───────────────────────
+    SnowSystem snow;
+    snow.init();
+
     // ── Texturas placeholder ───────────────────
     Texture whiteTex;
     whiteTex.loadWhite();
@@ -210,6 +215,7 @@ int main(int argc, char** argv) {
                 camera.clampPosition(-19.5f, 19.5f, -4.5f, 74.5f);
 
                 museum.update(dt);
+                snow.update(dt, (float)glfwGetTime());
 
                 // Detectar módulo cercano
                 ModuleInfo* near = museum.getNearModule(camera.position);
@@ -297,6 +303,9 @@ int main(int argc, char** argv) {
                 moduleScene.draw(stdShader, mod.id, mod.center, mod.animT, totalTime);
             }
 
+            // Fauna decorativa estática
+            moduleScene.drawFauna(stdShader);
+
             // ── Agua ártica (semitransparente — blend antes del skybox) ──────
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -320,6 +329,18 @@ int main(int argc, char** argv) {
             waterShader.setMat4("model", waterModel);
             waterMesh.draw();
 
+            glDepthMask(GL_TRUE);
+            glDisable(GL_BLEND);
+
+            // ── Partículas de nieve (billboards, unlit, blend) ──────────
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glDepthMask(GL_FALSE);
+            glDisable(GL_CULL_FACE); // el quad es de doble cara
+
+            snow.draw(unlitShader, view, proj);
+
+            glEnable(GL_CULL_FACE);
             glDepthMask(GL_TRUE);
             glDisable(GL_BLEND);
 
@@ -360,6 +381,7 @@ int main(int argc, char** argv) {
     moduleScene.free();
     skybox.free();
     waterMesh.free();
+    snow.free();
     whiteTex.free();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

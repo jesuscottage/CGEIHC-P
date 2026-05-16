@@ -1,5 +1,5 @@
 #pragma once
-// ModuleScene.h — Fase 5: geometría animada por módulo (placeholder geometry)
+// ModuleScene.h — Fase 8: geometría animada + fauna decorativa estática
 // Cada módulo tiene su propia escena 3D que anima con animT (0→1).
 // Los modelos reales (GLTF/OBJ) se integrarán en Fases posteriores;
 // por ahora se usa geometría procedural (cubos, discos, conos de discos).
@@ -38,8 +38,78 @@ public:
 
     void free() { mCube.free(); mDisc.free(); }
 
+    // ── Fauna decorativa estática ──────────────────────────────────────────
+    // Dibuja la fauna en posiciones fijas del museo.
+    // Llamar una vez por frame después de dibujar los módulos.
+    void drawFauna(Shader& sh) {
+        drawSeal(sh,     {-15.0f, 0.0f, 25.0f}); // foca cerca de M2_IZQ
+        drawArcticFox(sh, {-17.5f, 0.0f,  5.5f}); // zorro ártico en el corredor izq
+        drawSeagull(sh,   { -8.0f, 3.8f, 31.0f}); // gaviota volando cerca de M2_IZQ
+    }
+
 private:
     Mesh mCube, mDisc;
+
+    // ── Fauna helpers ──────────────────────────────────────────────────────
+    void drawSeal(Shader& sh, glm::vec3 pos) {
+        // Cuerpo: elipsoide simulado con un cubo escalado + disco base
+        col(sh, glm::vec3(0.28f, 0.25f, 0.22f)); // gris oscuro
+        mdl(sh, TS(pos + glm::vec3(0, 0.22f, 0), {0.52f, 0.28f, 0.90f}));
+        mCube.draw();
+        // Cabeza
+        col(sh, glm::vec3(0.32f, 0.28f, 0.24f));
+        mdl(sh, TS(pos + glm::vec3(0, 0.42f, 0.48f), {0.28f, 0.26f, 0.28f}));
+        mCube.draw();
+        // Aletas traseras
+        col(sh, glm::vec3(0.22f, 0.20f, 0.18f));
+        mdl(sh, TS(pos + glm::vec3(-0.18f, 0.06f, -0.50f),
+                    {0.14f, 0.06f, 0.30f}));
+        mCube.draw();
+        mdl(sh, TS(pos + glm::vec3( 0.18f, 0.06f, -0.50f),
+                    {0.14f, 0.06f, 0.30f}));
+        mCube.draw();
+    }
+
+    void drawArcticFox(Shader& sh, glm::vec3 pos) {
+        // Cuerpo
+        col(sh, glm::vec3(0.92f, 0.93f, 0.95f)); // blanco-grisáceo
+        mdl(sh, TS(pos + glm::vec3(0, 0.22f, 0), {0.28f, 0.25f, 0.65f}));
+        mCube.draw();
+        // Cabeza
+        col(sh, glm::vec3(0.88f, 0.89f, 0.92f));
+        mdl(sh, TS(pos + glm::vec3(0, 0.48f, 0.36f), {0.22f, 0.22f, 0.22f}));
+        mCube.draw();
+        // Orejas
+        col(sh, glm::vec3(0.85f, 0.85f, 0.88f));
+        mdl(sh, TS(pos + glm::vec3(-0.08f, 0.70f, 0.36f), {0.06f, 0.10f, 0.04f}));
+        mCube.draw();
+        mdl(sh, TS(pos + glm::vec3( 0.08f, 0.70f, 0.36f), {0.06f, 0.10f, 0.04f}));
+        mCube.draw();
+        // Cola esponjosa
+        col(sh, glm::vec3(0.96f, 0.96f, 0.98f));
+        mdl(sh, TS(pos + glm::vec3(0, 0.30f, -0.45f), {0.18f, 0.18f, 0.22f}));
+        mCube.draw();
+    }
+
+    void drawSeagull(Shader& sh, glm::vec3 pos) {
+        // Cuerpo central
+        col(sh, glm::vec3(0.95f, 0.96f, 0.98f)); // blanco
+        mdl(sh, TS(pos, {0.15f, 0.12f, 0.35f}));
+        mCube.draw();
+        // Alas — dos planos horizontales a los lados
+        col(sh, glm::vec3(0.90f, 0.92f, 0.95f));
+        mdl(sh, TS(pos + glm::vec3(-0.50f, 0.02f, 0), {0.65f, 0.04f, 0.18f}));
+        mCube.draw();
+        mdl(sh, TS(pos + glm::vec3( 0.50f, 0.02f, 0), {0.65f, 0.04f, 0.18f}));
+        mCube.draw();
+        // Cabeza y pico
+        col(sh, glm::vec3(0.96f, 0.96f, 0.98f));
+        mdl(sh, TS(pos + glm::vec3(0, 0.10f, 0.20f), {0.10f, 0.10f, 0.10f}));
+        mCube.draw();
+        col(sh, glm::vec3(1.0f, 0.8f, 0.2f)); // pico amarillo
+        mdl(sh, TS(pos + glm::vec3(0, 0.06f, 0.28f), {0.04f, 0.04f, 0.08f}));
+        mCube.draw();
+    }
 
     // ── Helpers ────────────────────────────────────────────────────────────
     void col(Shader& sh, const glm::vec3& c) {
