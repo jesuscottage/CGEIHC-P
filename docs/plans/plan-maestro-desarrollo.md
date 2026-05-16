@@ -54,6 +54,8 @@ Estas reglas aplican a **todas** las fases sin excepción:
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
     ```
+11. **Todo el proyecto gráfico vive dentro de `CGEIHC-P/app/`** — el código fuente, shaders y assets nunca salen de la carpeta del repositorio. `build/` y `active/` se crean en la raíz de `CGEIHC-P/` (gitignored). Ningún archivo del proyecto se crea fuera de `CGEIHC-P/`.
+12. **Gestión de descargas** — los assets descargados (modelos, texturas, audio, fuentes) que llegan a `C:\Users\herna\Downloads\` deben moverse a `CGEIHC-P/app/assets/{subcarpeta}` inmediatamente después de verificar su calidad. Los archivos temporales o descargados que no se van a usar se eliminan de Descargas para evitar que queden residuos.
 
 ---
 
@@ -157,21 +159,23 @@ const std::map<std::string, glm::vec3> MODULE_POSITIONS = {
 };
 ```
 
-**Uso en verificación autónoma**:
+**Uso en verificación autónoma** (ejecutar desde la raíz `CGEIHC-P/`):
 ```bash
-# Build
+# Build (CMakeLists.txt en app/, build/ en raíz)
+cmake -B build -S app -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --config Debug --parallel
 
 # Verificar escena estática (Fases 1-4)
 ./build/Debug/CGEIHC.exe
-# → genera: active/screenshot_f060.png, active/screenshot_f300.png, active/screenshot_f600.png
+# → screenshots guardados en: active/ (raíz del proyecto, vía ACTIVE_DIR)
+# → active/screenshot_f060.png, active/screenshot_f300.png, active/screenshot_f600.png
 
 # Verificar módulo específico (Fases 5, 10)
 ./build/Debug/CGEIHC.exe --test-module M1_IZQ
 # → posiciona cámara frente a M1 izq, simula E al frame 60
 # → screenshots muestran el iceberg en distintos estados de la animación
 
-# Claude lee todos los resultados:
+# Claude lee todos los resultados desde la raíz del proyecto:
 # Read: active/screenshot_f060.png
 # Read: active/screenshot_f300.png
 # Read: active/screenshot_f600.png
@@ -238,25 +242,30 @@ Usar RenderDoc para:
 
 #### 0.1 Crear estructura de directorios
 
+Todo el proyecto gráfico C++ vive dentro de `app/` (Regla Global #11). El código, shaders y assets nunca salen del repositorio.
+
 ```
 CGEIHC-P/
-├── src/
-│   └── vendor/         # headers stb + miniaudio (header-only, sin FetchContent)
-├── shaders/            # archivos .vert y .frag
-├── assets/
-│   ├── models/
-│   ├── textures/
-│   ├── audio/
-│   ├── fonts/
-│   └── skybox/
-├── active/             # gitignored — screenshots temporales
-├── build/              # gitignored — directorio de build
-└── CMakeLists.txt
+├── app/                        ← raíz del proyecto gráfico C++ (cmake -S app)
+│   ├── CMakeLists.txt
+│   ├── src/
+│   │   └── vendor/             # GLAD, stb headers, miniaudio (header-only)
+│   ├── shaders/                # archivos .vert y .frag
+│   └── assets/
+│       ├── models/             # GLTF/OBJ descargados de Sketchfab
+│       ├── textures/           # PNG de ambientcg.com / polyhaven.com
+│       ├── audio/              # OGG/WAV — ambiente + módulos
+│       ├── fonts/              # Roboto-Regular.ttf
+│       └── skybox/             # 6 PNGs para cubemap ártico
+├── active/                     # gitignored — screenshots y state.json (raíz)
+├── build/                      # gitignored — cmake -B build -S app
+└── [docs/, blueprints/, .claude/, etc.]
 ```
 
-#### 0.2 Escribir CMakeLists.txt
+#### 0.2 Escribir `app/CMakeLists.txt`
 
-Contenido completo requerido:
+El CMakeLists.txt vive en `app/`. Se invoca desde la **raíz del proyecto** con:
+`cmake -B build -S app` (el build/ queda fuera de app/, en la raíz).
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -321,6 +330,17 @@ target_include_directories(CGEIHC PRIVATE
 
 target_link_libraries(CGEIHC PRIVATE glfw glm::glm assimp)
 
+# ACTIVE_DIR — ruta absoluta a active/ en la raíz del proyecto (CGEIHC-P/active/)
+# CMAKE_SOURCE_DIR = CGEIHC-P/app/ → el padre es la raíz del repositorio
+get_filename_component(REPO_ROOT "${CMAKE_SOURCE_DIR}/.." ABSOLUTE)
+target_compile_definitions(CGEIHC PRIVATE
+    ACTIVE_DIR="${REPO_ROOT}/active/"
+)
+# Crear directorio active/ en la raíz del repositorio (si no existe)
+add_custom_command(TARGET CGEIHC POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${REPO_ROOT}/active"
+)
+
 # Copiar DLLs automáticamente al lado del .exe (Windows)
 add_custom_command(TARGET CGEIHC POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -328,8 +348,7 @@ add_custom_command(TARGET CGEIHC POST_BUILD
         $<TARGET_FILE_DIR:CGEIHC>
 )
 
-# Copiar assets/ junto al .exe para garantizar rutas relativas correctas
-# (en VS2022 el CWD puede NO ser la raíz del proyecto)
+# Copiar assets/ y shaders/ junto al .exe para garantizar rutas relativas correctas
 add_custom_command(TARGET CGEIHC POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/assets
@@ -340,12 +359,18 @@ add_custom_command(TARGET CGEIHC POST_BUILD
         ${CMAKE_SOURCE_DIR}/shaders
         $<TARGET_FILE_DIR:CGEIHC>/shaders
 )
-# Crear directorio active/ junto al .exe
-add_custom_command(TARGET CGEIHC POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-        $<TARGET_FILE_DIR:CGEIHC>/active
-)
 ```
+
+> **Uso de `ACTIVE_DIR` en C++**:
+> ```cpp
+> // main.cpp — fallback si se compila sin CMake
+> #ifndef ACTIVE_DIR
+> #define ACTIVE_DIR "active/"
+> #endif
+> // Uso:
+> saveScreenshot(ACTIVE_DIR "screenshot_f060.png", w, h);
+> saveStateJSON(ACTIVE_DIR "state.json", camPos, module, t, fps);
+> ```
 
 #### 0.3 Descargar y colocar headers en `src/vendor/`
 
@@ -403,9 +428,9 @@ int main() {
 
 ### Verificación de la Fase 0
 
-**Comando de build**:
+**Comando de build** (ejecutar desde la raíz `CGEIHC-P/`):
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
+cmake -B build -S app -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --config Debug --parallel
 ```
 
