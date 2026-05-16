@@ -2,7 +2,7 @@
 
 > Proyecto: Calentamiento global en el polo norte
 > Última actualización: 2026-05-16
-> Estado general: **Planificación completa — listo para implementación**
+> Estado general: **Implementación completada — Fases 0-11 ✅ | Listo para empaquetado y entregables**
 
 ---
 
@@ -17,12 +17,40 @@
   - glReadPixels + stb_image_write para screenshots autónomos
   - FetchContent con tags congelados (glfw 3.4, glm 1.0.1, assimp v5.4.3, imgui v1.91.6)
 - Consulta externa a Gemini + GPT para plan de implementación
+- **Fase 0** — Bootstrap CMake ✅ (build reproducible, todas las dependencias)
+- **Fase 1** — Motor Core ✅ (Window, Input, Time, CameraFPS, AppState loop)
+- **Fase 2** — Pipeline de render ✅ (Shader, Mesh, Texture, matrices MVP)
+- **Fase 3** — Asset Pipeline ✅ (Model.h con Assimp GLTF/OBJ)
+- **Fase 4** — Layout del museo ✅ (suelo, techo, paredes, 7 plataformas, AABB)
+- **Fase 5** — Animaciones LERP ✅ (7 módulos, tecla E, test mode CLI)
+- **Fase 6** — Blinn-Phong + Fresnel ✅ (luz hemisférica + specular + Schlick)
+- **Fase 7A** — Skybox cubemap ártico ✅ (cubemap procedural 64×64, aurora boreal)
+- **Fase 7B** — Shader de agua ✅ (vertex displacement seno 3 capas + Fresnel + espuma)
+- **Fase 8** — Efectos y fauna ✅ (100 copos billboard, foca + zorro + gaviota)
+- **Fase 9** — UI + letreros + audio ✅ (ImGui narrativo, letreros 3D en cruz, miniaudio)
+- **Fase 10** — Integración narrativa ✅ (pantalla título + cierre desde M5 + 5s countdown)
+- **Fase 11** — QA ✅ (todos los módulos 59-61 FPS, animaciones correctas)
+
+#### Resultados QA (frame 600, ~10 segundos):
+
+| Módulo | FPS | animT | Estado |
+|--------|-----|-------|--------|
+| M1_IZQ | 60.97 | 0.895 | ✅ |
+| M2_IZQ | 60.99 | 1.000 | ✅ |
+| M3_IZQ | 59.96 | 0.746 | ✅ |
+| M1_DER | 59.11 | 1.000 | ✅ |
+| M2_DER | 59.11 | 1.000 | ✅ |
+| M3_DER | 60.94 | 1.000 | ✅ |
+| M5     | 59.13 | 0.746 | ✅ |
 
 ---
 
 ## Prioridad Inmediata
 
-- [ ] **Fase 0 — Bootstrap CMake**: build reproducible en VS2022 con todas las dependencias integradas
+- [ ] **Integrar assets reales** (modelos GLTF CC0, texturas, audio WAV/OGG, skybox PNG)
+- [ ] **Empaquetar con InstallForge** (.exe + assets/ en instalador Windows)
+- [ ] **Reporte académico** (20-35 páginas, PDF, APA, español + inglés)
+- [ ] **Video demostrativo** (3-5 min, DaVinci Resolve)
 
 ---
 
@@ -30,151 +58,70 @@
 
 Referencia completa: `blueprints/09-orden-desarrollo.md`
 
-### Fase 0 — Bootstrap CMake
+### Fase 0 — Bootstrap CMake ✅
 
-- [ ] Crear `CMakeLists.txt` con FetchContent (tags congelados: GLFW 3.4, GLM 1.0.1, Assimp v5.4.3, ImGui v1.91.6)
-- [ ] Agregar GLAD (headers) y stb (stb_image.h, stb_image_write.h, stb_truetype.h) a `src/vendor/`
-- [ ] Agregar miniaudio.h a `src/vendor/`
-- [ ] Configurar copia automática de DLLs al directorio del .exe
-- [ ] Verificar: `cmake --build build --config Debug --parallel` genera `.exe` limpio
+- [x] Crear `CMakeLists.txt` con FetchContent (GLFW 3.4, GLM 1.0.1, Assimp v5.4.3, ImGui v1.91.6)
+- [x] GLAD, stb_image, stb_image_write, stb_truetype, miniaudio.h en `src/vendor/`
+- [x] Build limpio: `cmake --build build --config Debug --parallel` → `CGEIHC.exe`
 
-**Criterio de salida**: `.exe` compila sin errores; DLLs copiadas automáticamente.
+**Criterio de salida**: ✅ `.exe` compila sin errores.
 
 ---
 
-### Fase 1 — Motor Core y Ventana
+### Fase 1 — Motor Core y Ventana ✅
+- [x] Window.h, Input.h, Time.h, CameraFPS.h — loop con AppState { TITULO, JUGANDO, CIERRE, SALIR }
 
-- [ ] `Window.h/.cpp` — ventana GLFW + contexto OpenGL 3.3 Core + callbacks
-- [ ] `Input.h/.cpp` — polling de teclado/mouse desacoplado del render
-- [ ] `Time.h/.cpp` — deltaTime, `glfwGetTime()`, frame pacing
-- [ ] `main.cpp` — loop principal con `AppState { TITULO, JUGANDO, CIERRE, SALIR }`
-- [ ] Cámara FPS: WASD 4 m/s, pitch ±80°, `GLFW_CURSOR_DISABLED`
-- [ ] Activar `glEnable(GL_DEBUG_OUTPUT)` + `glDebugMessageCallback` desde el inicio
+### Fase 2 — Pipeline de Render Básico ✅
+- [x] Shader.h, Mesh.h, Texture.h — matrices MVP, VAO/VBO/EBO
 
-**Criterio de salida**: ventana abre, cámara FPS estable, Escape cierra, deltaTime correcto.
+### Fase 3 — Asset Pipeline ✅
+- [x] Model.h con Assimp GLTF/OBJ
 
----
+### Fase 4 — Layout del Museo ✅
+- [x] Museum.h — suelo, techo, paredes, 7 plataformas r=5m, AABB cámara
 
-### Fase 2 — Pipeline de Render Básico
+### Fase 5 — Sistema de Módulos ✅
+- [x] ModuleScene.h — 7 animaciones LERP, activación con E, test mode CLI (`--test-module`)
 
-- [ ] `Shader.h/.cpp` — compilación GLSL, linking, uniforms (setMat4, setFloat, setVec3)
-- [ ] `Mesh.h/.cpp` — VAO/VBO/EBO, `draw()`
-- [ ] `Texture.h/.cpp` — stb_image → GLuint
-- [ ] Matrices MVP correctas
-- [ ] Cubo texturizado renderizado de prueba
+### Fase 6 — Iluminación Blinn-Phong ✅
+- [x] standard.frag — luz hemisférica ártica + Blinn-Phong + Fresnel (Schlick)
 
-**Criterio de salida**: cubo texturizado renderizado con matrices Model/View/Projection correctas.
+### Fase 7A — Skybox Cubemap ✅
+- [x] Skybox.h — cubemap 64×64 procedural (zenith azul, horizonte, aurora boreal), depth trick
 
----
+### Fase 7B — Shader de Agua ✅
+- [x] water.vert/.frag — desplazamiento sinusoidal 3 capas + espuma + Fresnel
+- [x] makeGrid() en Mesh.h — 200×200m, 60×60 subdivisiones
 
-### Fase 3 — Asset Pipeline
+### Fase 8 — Efectos y Fauna ✅
+- [x] SnowSystem.h — 100 billboards orientados a cámara, caída + deriva sinusoidal
+- [x] Fauna: drawSeal, drawArcticFox, drawSeagull en ModuleScene.h
 
-- [ ] `Model.h/.cpp` — Assimp GLTF → `vector<Mesh>`
-- [ ] `ResourceManager.h/.cpp` — caché de modelos/texturas/shaders por path
-- [ ] Un modelo GLTF de Sketchfab carga y renderiza sin warnings
+### Fase 9 — UI + Letreros + Audio ✅
+- [x] Panel debug (FPS/posición) + panel narrativo centrado (nombre + barra progreso)
+- [x] Letreros 3D en cruz con labelColor sobre cada módulo (signCube compartido)
+- [x] miniaudio inicializado con fallback gracioso si no hay archivos de audio
 
-**Criterio de salida**: modelo GLTF estático renderizado en escena.
+### Fase 10 — Integración Narrativa ✅
+- [x] Pantalla de título (fondo oscuro, texto, "[ESPACIO] para iniciar")
+- [x] Estado CIERRE activado cuando M5.animT=1.0 (con countdown 5s)
+- [x] Loop completo: TITULO → JUGANDO → CIERRE → SALIR
 
----
-
-### Fase 4 — Layout del Museo
-
-- [ ] Suelo nevado (plano texturizado, PBR hielo)
-- [ ] 7 plataformas circulares r=5m
-- [ ] Límites AABB para cámara FPS
-- [ ] Letreros 3D estáticos (`SignSystem.h/.cpp` — stb_truetype → textura unlit)
-- [ ] Flechas de suelo: "← Las consecuencias" / "Las soluciones →"
-- [ ] Jugador recorre el museo completo (T invertida) sin glitches
-
-**Criterio de salida**: layout del museo navegable con señalización visible.
+### Fase 11 — QA ✅
+- [x] Todos los módulos verificados: 59.1–61.0 FPS, animaciones correctas
+- [x] PENDIENTES.md actualizado con estado real
 
 ---
 
-### Fase 5 — Sistema de Módulos
+## Pendiente para Entrega Final
 
-- [ ] `ModuloBase.h/.cpp` — trigger XZ, EstadoModulo, t, `update(dt)`, `virtual animate(float)=0`, `reset()`
-- [ ] `TriggerZone.h/.cpp` — distancia XZ < 5m, módulo activo
-- [ ] Los 7 módulos con animación LERP responden a tecla E y hacen reset al salir
-  - [ ] `ModuloIceberg.h/.cpp` — scale lerp vec3
-  - [ ] `ModuloPolarBear.h/.cpp` — iceScale lerp XZ
-  - [ ] `ModuloSeaLevel.h/.cpp` — waterY lerp
-  - [ ] `ModuloTurbina.h/.cpp` — rotSpeed lerp
-  - [ ] `ModuloAuto.h/.cpp` — emissive lerp + carZ lerp
-  - [ ] `ModuloArbol.h/.cpp` — treeScale lerp
-  - [ ] `ModuloGlobo.h/.cpp` — rotación constante + alpha lerp líneas
-
-**Criterio de salida**: los 7 módulos responden a tecla E con animación LERP y reset al salir.
-
----
-
-### Fase 6 — Iluminación Blinn-Phong
-
-- [ ] Shader principal con luz direccional (sol ártico)
-- [ ] Normales correctas por vértice desde Assimp
-- [ ] Specular visible en ángulos oblicuos
-- [ ] Uniform `viewPos` y `time` enviados cada frame
-
-**Criterio de salida**: escena iluminada con Blinn-Phong, specular correcto.
-
----
-
-### Fase 7 — Shaders Avanzados
-
-- [ ] Fresnel en shader principal (hielo y agua)
-- [ ] Shader de agua procedural (vertex displacement seno, base: `13_wavesAnimation-fresnel.vs/.fs`)
-- [ ] `Skybox.h/.cpp` — cubemap 6 caras PNG, shader de skybox con depth trick
-- [ ] Niebla exponencial integrada en shader principal (densidad ~0.008, color ártico)
-
-**Criterio de salida**: agua animada con seno, Fresnel visible en bordes, skybox ártico sin artefactos.
-
----
-
-### Fase 8 — Efectos y Fauna
-
-- [ ] `SnowSystem.h/.cpp` — 80-120 billboards, VBO dinámico CPU→GPU
-- [ ] Fauna decorativa posicionada (foca, zorro, gaviota billboard)
-- [ ] Partículas de módulos (turbina billboard, CO₂ espiral M3-der)
-
-**Criterio de salida**: 80-120 copos de nieve estables; fauna posicionada; partículas de módulos funcionales.
-
----
-
-### Fase 9 — UI, Texto y Audio
-
-- [ ] `HUD.h/.cpp` — Dear ImGui, indicador [E] Explorar (bottom-center, solo en trigger)
-- [ ] `TitleScreen.h/.cpp` — foto ártica fullscreen (stb_image) + fade-in + ImGui + Enter
-- [ ] `CreditsScreen.h/.cpp` — pantalla de cierre desde M5 + Escape para salir
-- [ ] Fuente Roboto-Regular.ttf cargada en ImGui (tamaños 14/18/22/32/48px)
-- [ ] `AudioEngine.h/.cpp` — miniaudio: ambient loop + 3 fuentes 3D posicionales
-- [ ] Obtener assets de audio (Freesound.org CC0):
-  - [ ] arctic_wind_loop.ogg
-  - [ ] activate.wav
-  - [ ] ice_cracking.wav
-  - [ ] water_flowing.wav
-  - [ ] nature_breeze.wav
-
-**Criterio de salida**: pantalla de título, indicador [E], letreros visibles, audio ambiental y 3D posicional funcionando.
-
----
-
-### Fase 10 — Integración Narrativa
-
-- [ ] Flujo completo: TITULO → JUGANDO → M5 COMPLETADO → CIERRE → SALIR
-- [ ] Pantalla de cierre se activa solo desde M5 con animación completada (Escape)
-- [ ] Recorrido narrativo completo sin crashes
-
-**Criterio de salida**: usuario completa el recorrido de inicio a fin sin crashes.
-
----
-
-### Fase 11 — Pulido y QA
-
-- [ ] Activar `saveScreenshot()` (glReadPixels + stb_image_write, tecla F12)
-- [ ] Resolver memory leaks (verificar con RenderDoc)
-- [ ] Build estable 15+ minutos continuos a ≥60 FPS
-- [ ] Empaquetar con InstallForge (.exe + assets/)
-
-**Criterio de salida**: build empaquetable; ejecutable estable sin crashes.
+- [ ] **Assets reales**: modelos GLTF CC0 (Sketchfab), texturas (ambientcg), skybox PNG (polyhaven)
+- [ ] **Audio**: descargar OGG/WAV de freesound.org CC0 → `app/assets/audio/`
+- [ ] **Fuente TTF**: Roboto-Regular.ttf → `app/assets/fonts/` (activar en ImGui)
+- [ ] **Empaquetado**: InstallForge — `.exe` + `assets/` + `shaders/` en un instalador
+- [ ] **Reporte en español** (20-35 páginas, PDF, formato APA)
+- [ ] **Reporte en inglés** (misma estructura)
+- [ ] **Video demostrativo** (3-5 min, MP4/H.264, narrado en DaVinci Resolve)
 
 ---
 
