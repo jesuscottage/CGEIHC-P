@@ -715,22 +715,30 @@ git log --oneline -3
 
 ## Resultados de los Tests
 
-> Esta sección se llena durante la ejecución del plan de pruebas.
+> Ejecutados: 2026-05-16
 
 | Test | Estado | Notas |
 |------|--------|-------|
-| T-01 Entorno | ⏳ pendiente | — |
-| T-02 CMake mínimo | ⏳ pendiente | — |
-| T-03 ACTIVE_DIR | ⏳ pendiente | — |
-| T-04 GLFW + GLAD + OpenGL | ⏳ pendiente | — |
-| T-05 Screenshot + Read (CRÍTICO) | ⏳ pendiente | — |
-| T-06 Multi-screenshot + JSON | ⏳ pendiente | — |
-| T-07 Test Mode CLI | ⏳ pendiente | — |
-| T-08 FetchContent deps | ⏳ pendiente | — |
-| T-09 stb headers | ⏳ pendiente | — |
-| T-10 miniaudio | ⏳ pendiente | — |
-| T-11 WebSearch + WebFetch | ⏳ pendiente | — |
-| T-12 Git workflow | ⏳ pendiente | — |
+| T-01 Entorno | ✅ PASA | cmake 3.29, git 2.45 en PATH. MSVC a través de `cmake --build` (no requiere cl.exe directo). |
+| T-02 CMake mínimo | ✅ PASA | C++17 compila sin problemas. Path con `é` (Jesús) funciona correctamente en CMake y MSVC. |
+| T-03 ACTIVE_DIR | ✅ PASA | `get_filename_component(REPO_ROOT ...)` genera rutas con `/` en Windows. `active/test_t03.txt` creado correctamente. |
+| T-04 GLFW + GLAD + OpenGL | ✅ PASA | FetchContent descarga GLFW 3.4. GLAD generado con `python -m glad --api gl=3.3 --profile core --generator c`. OpenGL 3.3 Core context creado. **NOTA**: estructura de GLAD es `vendor/include/glad/glad.h` (no flat). |
+| T-05 Screenshot + Read (CRÍTICO) | ✅ PASA | `glReadPixels` captura correctamente. Los tres PNGs (rojo/verde/azul) son visualmente distintos y Claude los interpreta correctamente con la herramienta Read. Pipeline autónomo validado. |
+| T-06 Multi-screenshot + JSON | ✅ PASA | 3 screenshots (f060, f300, f600) con colores progresivos (azul→púrpura→rojo). `state.json` con `"test": "T-06 OK"`, fps ~817 (sin vsync). App cierra automáticamente en frame 600. |
+| T-07 Test Mode CLI | ✅ PASA | `--test-module M1_IZQ` parseado correctamente. Sin argumentos no rompe el comportamiento. |
+| T-08 FetchContent deps | ✅ PASA | GLM 1.0.1, Assimp v5.4.3, ImGui v1.91.6 descargan y compilan. **NOTA IMPORTANTE**: Assimp compila como librería *estática* (`assimp-vc143-mtd.lib`) en Debug — no genera DLL. El `copy_if_different` del POST_BUILD es un no-op en Debug. |
+| T-09 stb headers | ✅ PASA | `stb_impl.cpp` (con stb_image + stb_image_write + stb_truetype) compila sin errores ni definiciones múltiples. Archivo permanente del proyecto. |
+| T-10 miniaudio | ✅ PASA | `ma_engine_init` retorna `MA_SUCCESS`. Sample rate: 48000 Hz. `ma_engine_uninit` sin crash. Archivo `miniaudio_impl.cpp` permanente. |
+| T-11 WebSearch + WebFetch | ✅ PASA | WebSearch: encontró github.com/JoeyDeVries/LearnOpenGL. WebFetch: extrajo shader GLSL de learnopengl.com/Getting-started/Hello-Triangle. Ambas herramientas disponibles. |
+| T-12 Git workflow | ✅ PASA | Commits y push verificados en sesiones previas. `git log` muestra historial limpio. |
+
+### Hallazgos clave para el plan maestro
+
+1. **GLAD path**: usar `#include "glad/glad.h"` (no `#include "glad.h"`). Rutas CMake: `src/vendor/include` + `src/vendor`.
+2. **Assimp estático en Debug**: no copiar DLL en Debug. El POST_BUILD `copy_if_different` puede mantenerse por compatibilidad con Release.
+3. **Path é (Jesús)**: no requiere mitigación. Funciona en CMake, MSVC y bash.
+4. **Vsync en producción**: sin `glfwSwapInterval(1)`, la app corre a ~817 FPS. Agregar vsync en la Fase 1 real.
+5. **Pipeline visual PASA**: el ciclo `código → build → exe → screenshot → Read visual` funciona de forma autónoma. Se puede ejecutar el plan maestro sin supervisión.
 
 ---
 
