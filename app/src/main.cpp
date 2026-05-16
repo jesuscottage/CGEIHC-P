@@ -1,4 +1,4 @@
-// main.cpp — Fase 8: Partículas de nieve (billboards) + fauna decorativa
+// main.cpp — Fase 9: Letreros 3D + UI narrativa + audio (miniaudio)
 
 #include "glad/glad.h"
 #include "core/Window.h"
@@ -124,6 +124,16 @@ int main(int argc, char** argv) {
     }
     input.captureMouse();
 
+    // ── Audio (miniaudio) ─────────────────────
+    // El motor de audio se inicializa; si no hay archivos en assets/audio/
+    // las llamadas a play_sound simplemente retornan error sin crashear.
+    ma_engine audioEngine;
+    bool audioOk = (ma_engine_init(nullptr, &audioEngine) == MA_SUCCESS);
+    if (audioOk) {
+        // Sonido ambiental de viento ártico (si existe el archivo)
+        ma_engine_play_sound(&audioEngine, ASSETS_DIR "audio/ambient.ogg", nullptr);
+    }
+
     // ── ImGui ─────────────────────────────────
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -245,11 +255,12 @@ int main(int argc, char** argv) {
             case AppState::SALIR:  break;
         }
 
-        // ── ImGui debug ───────────────────────────
+        // ── ImGui overlays ────────────────────────
         if (state == AppState::JUGANDO) {
+            // ── Panel debug (esquina superior izq) ──────────────────────
             ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
-            ImGui::SetNextWindowSize(ImVec2(280, 130), ImGuiCond_Always);
-            ImGui::SetNextWindowBgAlpha(0.55f);
+            ImGui::SetNextWindowSize(ImVec2(280, 115), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.50f);
             ImGui::Begin("Debug", nullptr,
                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
                 ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoSavedSettings);
@@ -257,11 +268,36 @@ int main(int argc, char** argv) {
             ImGui::Text("Cam: (%.1f, %.1f, %.1f)",
                 camera.position.x, camera.position.y, camera.position.z);
             ImGui::Text("Yaw: %.1f  Pitch: %.1f", camera.yaw, camera.pitch);
-            ModuleInfo* near = museum.getNearModule(camera.position);
-            if (near) ImGui::Text("Cerca: %s  [E para activar]", near->id.c_str());
-            else      ImGui::Text("Sin modulo cercano");
-            ImGui::Text("Activo: %s  t=%.2f", activeModuleName.c_str(), activeModuleT);
             ImGui::End();
+
+            // ── Panel narrativo (parte inferior central) ─────────────────
+            // Muestra info del módulo cercano + barra de progreso si activo
+            ModuleInfo* near = museum.getNearModule(camera.position);
+            if (near || activeModulePtr) {
+                float pw = 480.0f, ph = near ? 90.0f : 70.0f;
+                ImGui::SetNextWindowPos(
+                    ImVec2((window.width() - pw) * 0.5f, window.height() - ph - 20),
+                    ImGuiCond_Always);
+                ImGui::SetNextWindowSize(ImVec2(pw, ph), ImGuiCond_Always);
+                ImGui::SetNextWindowBgAlpha(0.70f);
+                ImGui::Begin("Narrativo", nullptr,
+                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoSavedSettings);
+
+                if (near && !near->animActive) {
+                    ImGui::TextColored(ImVec4(0.7f,0.9f,1.0f,1.0f),
+                        "[ %s ]", near->label.c_str());
+                    ImGui::Text("Presiona  E  para activar la animacion");
+                } else if (activeModulePtr) {
+                    ImGui::TextColored(ImVec4(0.4f,1.0f,0.6f,1.0f),
+                        "[ %s ]  - Animando", activeModulePtr->label.c_str());
+                    ImGui::ProgressBar(activeModuleT, ImVec2(-1.0f, 0.0f));
+                    if (activeModuleT >= 1.0f)
+                        ImGui::TextColored(ImVec4(1.0f,0.9f,0.4f,1.0f),
+                            "Animacion completada");
+                }
+                ImGui::End();
+            }
         }
 
         // ── Render ───────────────────────────────
@@ -305,6 +341,9 @@ int main(int argc, char** argv) {
 
             // Fauna decorativa estática
             moduleScene.drawFauna(stdShader);
+
+            // Letreros 3D de color sobre cada módulo
+            museum.drawSigns(stdShader);
 
             // ── Agua ártica (semitransparente — blend antes del skybox) ──────
             glEnable(GL_BLEND);
@@ -383,6 +422,7 @@ int main(int argc, char** argv) {
     waterMesh.free();
     snow.free();
     whiteTex.free();
+    if (audioOk) ma_engine_uninit(&audioEngine);
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
