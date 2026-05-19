@@ -32,15 +32,36 @@ El proyecto demuestra la aplicación del pipeline gráfico completo: modelado ge
 - **Modelos 3D**: Assimp
 - **Texturas**: stb_image
 - **UI/HUD**: Dear ImGui
-- **Audio**: OpenAL Soft
-- **Build**: CMake 3.20+ con FetchContent
-- **Modelado**: Blender 4.x
+- **Audio**: miniaudio 0.11 (header-only, reemplaza OpenAL)
+- **Build**: CMake 4.x con FetchContent
+- **Generación de audio**: edge-tts (Python, voz `es-ES-AlvaroNeural`)
+
+## Compilar y ejecutar
+
+```powershell
+# Solo la primera vez
+& "C:\Program Files\CMake\bin\cmake.exe" -S app -B build -G "Visual Studio 18 2026"
+
+# Compilar y ejecutar
+& "C:\Program Files\CMake\bin\cmake.exe" --build build --config Release --target CGEIHC --parallel
+.\build\Release\CGEIHC.exe
+```
+
+## Controles
+
+| Tecla | Acción |
+|-------|--------|
+| `WASD` | Moverse |
+| Ratón | Girar cámara |
+| `E` | Activar animación del módulo + popup narrativo |
+| `TAB` | Cerrar popup y detener narración |
+| `ESC` | Salir |
 
 ## Documentación
 
 | Archivo | Descripción |
 |---------|-------------|
-| `PENDIENTES.md` | Estado actual y próximos pasos |
+| `PENDIENTES.md` | **Leer primero** — estado actual, cambios recientes, instrucciones de build |
 | `INFRAESTRUCTURA.md` | Stack técnico completo y arquitectura |
 | `CLAUDE.md` | Instrucciones para Claude Code |
 | `docs/knowledge/INDEX.md` | Índice de la base de conocimiento |

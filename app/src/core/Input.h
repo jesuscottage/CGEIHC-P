@@ -34,7 +34,8 @@ public:
         static const int KEYS[] = {
             GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D,
             GLFW_KEY_E, GLFW_KEY_ESCAPE, GLFW_KEY_F12,
-            GLFW_KEY_SPACE, GLFW_KEY_ENTER, GLFW_KEY_LEFT_SHIFT
+            GLFW_KEY_SPACE, GLFW_KEY_ENTER, GLFW_KEY_LEFT_SHIFT,
+            GLFW_KEY_TAB
         };
         for (int k : KEYS)
             currKeys[k] = (glfwGetKey(win, k) == GLFW_PRESS);

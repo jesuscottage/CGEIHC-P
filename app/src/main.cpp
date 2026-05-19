@@ -102,6 +102,46 @@ static void saveStateJSON(int frame, float fps, const glm::vec3& cam,
 }
 
 // ─────────────────────────────────────────────
+// Colisión museo — layout en T
+// ─────────────────────────────────────────────
+static void applyCollision(glm::vec3& pos, float prevX) {
+    const float R = 0.35f;
+
+    if (pos.z < -4.5f + R) pos.z = -4.5f + R;
+    if (pos.z > 74.5f - R) pos.z = 74.5f - R;
+
+    // Si el jugador está fuera del ancho del vestíbulo (X=±9.25), no puede retroceder a Z<9.8
+    if (pos.z < 9.8f && (pos.x < -9.25f || pos.x > 9.25f))
+        pos.z = 9.8f;
+
+    if (pos.z < 9.8f) {
+        // Vestíbulo: solo paredes exteriores
+        if (pos.x < -9.6f + R) pos.x = -9.6f + R;
+        if (pos.x >  9.6f - R) pos.x =  9.6f - R;
+    } else if (pos.z < 60.0f) {
+        // Corredores: paredes exteriores
+        if (pos.x < -19.5f + R) pos.x = -19.5f + R;
+        if (pos.x >  19.5f - R) pos.x =  19.5f - R;
+        // Paredes interiores en X=±4.25 (grosor 0.5):
+        //   cara interior (da al centro) en X=±4.0
+        //   cara exterior (da al corredor) en X=±4.5
+        if (prevX > 4.5f) {
+            if (pos.x < 4.5f + R) pos.x = 4.5f + R;   // corredor der → bloqueado en cara exterior
+        } else if (prevX < -4.5f) {
+            if (pos.x > -4.5f - R) pos.x = -4.5f - R; // corredor izq → bloqueado en cara exterior
+        } else {
+            // centro (o dentro de la pared): bloqueado por caras interiores
+            if (pos.x >  4.0f - R) pos.x =  4.0f - R;
+            if (pos.x < -4.0f + R) pos.x = -4.0f + R;
+        }
+    } else {
+        // Sala M5: solo paredes exteriores
+        if (pos.x < -19.5f + R) pos.x = -19.5f + R;
+        if (pos.x >  19.5f - R) pos.x =  19.5f - R;
+    }
+}
+
+// ─────────────────────────────────────────────
 // main
 // ─────────────────────────────────────────────
 int main(int argc, char** argv) {
@@ -131,9 +171,12 @@ int main(int argc, char** argv) {
     ma_engine audioEngine;
     bool audioOk = (ma_engine_init(nullptr, &audioEngine) == MA_SUCCESS);
     if (audioOk) {
-        // Sonido ambiental de viento ártico
         ma_engine_play_sound(&audioEngine, ASSETS_DIR "audio/ambient.mp3", nullptr);
     }
+
+    // Handle para la narración (permite detenerla con Tab)
+    ma_sound narratorSound;
+    bool    narratorInit = false;
 
     // ── ImGui ─────────────────────────────────
     IMGUI_CHECKVERSION();
@@ -206,6 +249,89 @@ int main(int argc, char** argv) {
     // Módulo actualmente activado (nullptr si ninguno)
     ModuleInfo* activeModulePtr  = nullptr;
 
+    // ── Textos narrativos por módulo ──────────────────────────────────────
+    static const std::map<std::string, std::string> MODULE_TEXTOS = {
+        {"M1_IZQ",
+         "Deshielo del Ártico\n\n"
+         "El Ártico está perdiendo más del 13% de su superficie de hielo marino cada "
+         "década, un ritmo sin precedentes en miles de años. Las temperaturas en esta "
+         "región aumentan hasta cuatro veces más rápido que en el resto del planeta, "
+         "derritiendo glaciares milenarios que tardarían siglos en formarse de nuevo.\n\n"
+         "Este deshielo eleva el nivel global del mar, amenazando comunidades costeras "
+         "en todos los continentes. Además, altera las corrientes oceánicas que "
+         "regulan el clima de Europa y América, provocando fenómenos meteorológicos "
+         "extremos cada vez más frecuentes e intensos."},
+        {"M2_IZQ",
+         "Fauna en Peligro\n\n"
+         "El oso polar, símbolo del Ártico, depende del hielo marino para cazar focas "
+         "y reproducirse. Con menos hielo cada año, estos animales deben nadar "
+         "distancias cada vez mayores, agotando sus reservas energéticas. Se estima "
+         "que dos tercios de la población mundial de osos polares podría desaparecer "
+         "antes del año 2050 si el calentamiento continúa al ritmo actual.\n\n"
+         "Morsas, ballenas bowhead, zorros árticos y cientos de especies migratorias "
+         "también se ven afectadas. La pérdida de un eslabón en esta cadena alimentaria "
+         "tiene consecuencias en cascada para todo el ecosistema ártico."},
+        {"M3_IZQ",
+         "Ciudades Inundadas\n\n"
+         "Si las emisiones globales no se reducen drásticamente, el nivel del mar "
+         "podría subir entre 0.5 y 1.3 metros para el año 2100. Ciudades como Miami, "
+         "Nueva Orleans, Tokio, Ámsterdam, Mumbai y Shanghái enfrentarían inundaciones "
+         "permanentes que harían inviable la vida de millones de personas.\n\n"
+         "Se calcula que más de 680 millones de personas viven en zonas costeras de "
+         "baja elevación. El desplazamiento masivo que provocaría esta crisis generaría "
+         "conflictos por recursos, colapso de infraestructuras y pérdidas económicas "
+         "que superarían los 14 billones de dólares anuales a nivel mundial."},
+        {"M1_DER",
+         "Energía Eólica\n\n"
+         "Los aerogeneradores modernos pueden abastecer de energía completamente limpia "
+         "a miles de hogares sin emitir un solo gramo de CO₂ durante su operación. "
+         "La energía eólica es hoy una de las fuentes de electricidad más baratas del "
+         "mundo, con costos que han caído más del 70% en la última década.\n\n"
+         "En 2023, la capacidad eólica global superó los 1,000 gigavatios, suficiente "
+         "para abastecer a más de 700 millones de hogares. Países como Dinamarca ya "
+         "generan más del 50% de su electricidad con viento, demostrando que una "
+         "transición energética completa es técnica y económicamente posible."},
+        {"M2_DER",
+         "Auto Eléctrico\n\n"
+         "El transporte representa casi el 25% de las emisiones globales de CO₂, y "
+         "los automóviles de gasolina y diésel son los principales responsables. "
+         "Sustituirlos por vehículos eléctricos alimentados con energía renovable "
+         "podría eliminar hasta el 80% de esas emisiones, transformando radicalmente "
+         "la huella de carbono del sector.\n\n"
+         "Las ventas de autos eléctricos crecieron un 35% en 2023 y se espera que "
+         "superen a los de combustión interna antes de 2035. Además de reducir "
+         "emisiones, los vehículos eléctricos disminuyen la contaminación del aire "
+         "en ciudades, salvando cientos de miles de vidas cada año."},
+        {"M3_DER",
+         "Captura de Carbono\n\n"
+         "Las tecnologías de captura directa de aire, conocidas como DAC, extraen "
+         "CO₂ directamente de la atmósfera y lo comprimen para almacenarlo de forma "
+         "permanente en formaciones geológicas profundas. Aunque todavía en etapa de "
+         "escalamiento, estas plantas representan una herramienta crítica para "
+         "revertir el daño ya causado al clima.\n\n"
+         "Combinadas con la reforestación masiva y la reducción de emisiones, la "
+         "captura de carbono podría ayudar a alcanzar la neutralidad de carbono antes "
+         "de 2050. Islandia ya opera la planta DAC más grande del mundo, capturando "
+         "equivalente a lo que emiten miles de automóviles cada año."},
+        {"M5",
+         "Acuerdos por el Clima\n\n"
+         "El Acuerdo de París, firmado en 2015, une a 196 naciones en un compromiso "
+         "histórico: limitar el calentamiento global a 1.5°C por encima de los niveles "
+         "preindustriales. Este umbral es crítico: superarlo significaría consecuencias "
+         "irreversibles para ecosistemas, comunidades y economías de todo el planeta.\n\n"
+         "Cada nación presenta sus propios planes de reducción de emisiones, y cada "
+         "cinco años se revisan y fortalecen esos compromisos. La ciencia, la "
+         "tecnología y la voluntad política colectiva son los tres pilares sobre los "
+         "que descansa la única salida posible: un futuro donde el Ártico vuelva a "
+         "congelarse, las ciudades permanezcan en pie y las especies encuentren "
+         "un hogar donde vivir."},
+    };
+
+    // ── Estado del popup narrativo ────────────────────────────────────────
+    bool        popupVisible = false;
+    std::string popupTitulo;
+    std::string popupTexto;
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
@@ -227,9 +353,10 @@ int main(int argc, char** argv) {
                 break;
 
             case AppState::JUGANDO: {
+                float prevX = camera.position.x;
                 camera.processInput(input, dt);
-                // AABB: límites del museo
-                camera.clampPosition(-19.5f, 19.5f, -4.5f, 74.5f);
+                // Colisión museo
+                applyCollision(camera.position, prevX);
                 // Multi-ángulo QA: forzar pitch para capturas
                 if (testCfg.enabled) {
                     for (int i = 0; i < 5; i++) {
@@ -252,6 +379,36 @@ int main(int argc, char** argv) {
                 if (near && input.isJustPressed(GLFW_KEY_E)) {
                     near->activate();
                     activeModulePtr = near;
+                    // Abrir popup narrativo
+                    auto it = MODULE_TEXTOS.find(near->id);
+                    if (it != MODULE_TEXTOS.end()) {
+                        popupTitulo  = near->label;
+                        popupTexto   = it->second;
+                        popupVisible = true;
+                    }
+                    // Reproducir narración con handle para poder detenerla
+                    if (audioOk) {
+                        if (narratorInit) {
+                            ma_sound_stop(&narratorSound);
+                            ma_sound_uninit(&narratorSound);
+                            narratorInit = false;
+                        }
+                        std::string ruta = std::string(ASSETS_DIR) + "audio/narr_" + near->id + ".mp3";
+                        if (ma_sound_init_from_file(&audioEngine, ruta.c_str(), 0,
+                                nullptr, nullptr, &narratorSound) == MA_SUCCESS) {
+                            ma_sound_start(&narratorSound);
+                            narratorInit = true;
+                        }
+                    }
+                }
+                // Cerrar popup con Tab y detener narración
+                if (popupVisible && input.isJustPressed(GLFW_KEY_TAB)) {
+                    popupVisible = false;
+                    if (narratorInit) {
+                        ma_sound_stop(&narratorSound);
+                        ma_sound_uninit(&narratorSound);
+                        narratorInit = false;
+                    }
                 }
                 // Test mode: simular E en el frame configurado
                 if (testCfg.enabled && frameCount == testCfg.activateAtFrame && near) {
@@ -274,12 +431,7 @@ int main(int argc, char** argv) {
                     for (const auto& m : museum.modules)
                         if (m.animT >= 1.0f) done++;
                     modulesCompleted = done;
-                    // Si M5 (el último módulo) completó su animación → CIERRE
-                    for (const auto& m : museum.modules)
-                        if (m.id == "M5" && m.animT >= 1.0f && !testCfg.enabled) {
-                            state = AppState::CIERRE;
-                            cierreTimer = glfwGetTime();
-                        }
+                    // CIERRE desactivado para demo libre — salir solo con ESC
                 }
                 break;
             }
@@ -395,6 +547,34 @@ int main(int argc, char** argv) {
                 }
                 ImGui::End();
             }
+
+            // ── Popup narrativo ──────────────────────────────────────────
+            if (popupVisible) {
+                float pw = 680.0f, ph = 380.0f;
+                ImGui::SetNextWindowPos(
+                    ImVec2((window.width()  - pw) * 0.5f,
+                           (window.height() - ph) * 0.35f),
+                    ImGuiCond_Always);
+                ImGui::SetNextWindowSize(ImVec2(pw, ph), ImGuiCond_Always);
+                ImGui::SetNextWindowBgAlpha(0.90f);
+                ImGui::Begin("PopupNarrativo", nullptr,
+                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoSavedSettings);
+
+                ImGui::TextColored(ImVec4(0.4f, 0.85f, 1.0f, 1.0f),
+                    "%s", popupTitulo.c_str());
+                ImGui::Separator();
+                ImGui::Spacing();
+                ImGui::SetNextItemWidth(-1.0f);
+                ImGui::PushTextWrapPos(pw - 20.0f);
+                ImGui::TextUnformatted(popupTexto.c_str());
+                ImGui::PopTextWrapPos();
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.55f, 0.55f, 0.55f, 1.0f),
+                    "[ TAB ] Cerrar");
+
+                ImGui::End();
+            }
         }
 
         // ── Render ───────────────────────────────
@@ -498,10 +678,10 @@ int main(int argc, char** argv) {
 
         window.swapBuffers();
         window.pollEvents();
-        if (frameCount == 600)
+        if (testCfg.enabled && frameCount == 600)
             saveStateJSON(frameCount, currentFPS, camera.position, activeModuleName, activeModuleT);
 
-        if (frameCount >= 620) state = AppState::SALIR;
+        if (testCfg.enabled && frameCount >= 620) state = AppState::SALIR;
         if (state == AppState::SALIR) window.close();
 
         fpsFrames++;
@@ -521,6 +701,7 @@ int main(int argc, char** argv) {
     waterMesh.free();
     snow.free();
     whiteTex.free();
+    if (narratorInit) { ma_sound_stop(&narratorSound); ma_sound_uninit(&narratorSound); }
     if (audioOk) ma_engine_uninit(&audioEngine);
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

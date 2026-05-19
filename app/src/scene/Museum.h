@@ -135,8 +135,8 @@ public:
             ceilingMesh.draw();
         }
 
-        // Re-activar culling para paredes y el resto
-        glEnable(GL_CULL_FACE);
+        // Paredes — culling desactivado (cámara interior ve cara interna)
+        glDisable(GL_CULL_FACE);
 
         // Paredes — textura de concreto claro si disponible
         for (const auto& w : walls) {
@@ -151,6 +151,7 @@ public:
             }
             w.mesh.draw();
         }
+        glEnable(GL_CULL_FACE);
 
         // Plataformas — textura de hielo si disponible
         for (const auto& p : platforms) {
@@ -276,14 +277,14 @@ private:
         // ── Corredor izquierdo ─────────────────────────────
         // Pared exterior izq (X=-20)
         addWall({-20.25f, 3, 35}, {0.5f, 6, 70}, wallColor);
-        // Pared interior izq (X=-4)  — separación con el centro
-        addWall({-4.25f, 3, 35}, {0.5f, 6, 70}, {wallColor.r*0.85f, wallColor.g*0.85f, wallColor.b*0.85f});
+        // Pared interior izq (X=-4)  — empieza en Z=10 (fin del vestíbulo)
+        addWall({-4.25f, 3, 40}, {0.5f, 6, 60}, {wallColor.r*0.85f, wallColor.g*0.85f, wallColor.b*0.85f});
         // Pared trasera corredor izq (Z=65 lado izq)
         addWall({-12, 3, 65.25f}, {16, 6, 0.5f}, wallColor);
 
         // ── Corredor derecho ───────────────────────────────
         addWall({ 20.25f, 3, 35}, {0.5f, 6, 70}, wallColor);
-        addWall({  4.25f, 3, 35}, {0.5f, 6, 70}, {wallColor.r*0.85f, wallColor.g*0.85f, wallColor.b*0.85f});
+        addWall({  4.25f, 3, 40}, {0.5f, 6, 60}, {wallColor.r*0.85f, wallColor.g*0.85f, wallColor.b*0.85f});
         addWall({ 12, 3, 65.25f}, {16, 6, 0.5f}, wallColor);
 
         // ── Sala M5 ────────────────────────────────────────
