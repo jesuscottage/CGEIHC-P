@@ -1,8 +1,8 @@
 # Pendientes del Proyecto — CGEIHC-P
 
 > Proyecto: Calentamiento global en el polo norte
-> Última actualización: 2026-05-18
-> Estado general: **Fase 12 completa — Colisiones, narración y audio por módulo integrados**
+> Última actualización: 2026-05-19
+> Estado general: **Fase 13 completa — DecoScene: fauna animada, modelos reales, piso de hielo, terreno exterior nevado**
 
 ---
 
@@ -39,39 +39,94 @@ El resto de dependencias (GLFW, GLM, Assimp, ImGui) se descargan automáticament
 
 ## Estado Actual
 
-### Modelos 3D (16 archivos GLB en app/assets/models/)
+### Modelos 3D integrados en DecoScene
 
 | Modelo | Origen | Textura | Uso en escena |
 |--------|--------|---------|---------------|
-| pine_snow.glb | Quaternius CC0 | Embebida | M3_DER arbol que crece |
-| electric_car.glb | Kenney CC0 | Color override azul | M2_DER auto electrico |
+| pine_snow.glb | Quaternius CC0 | Embebida | M3_DER árbol que crece |
+| electric_car.glb | Kenney CC0 | Color override azul | M2_DER auto eléctrico |
 | building_a/b/c.glb | Kenney CC0 | Color override concreto | M3_IZQ ciudad inundada |
 | globe.glb | KhronosGroup CC0 | Embebida (metal) | M5 globo giratorio |
-| iceberg.glb | Quaternius CC0 | Color override azul hielo | M1_IZQ iceberg derritiendose |
+| iceberg.glb | Quaternius CC0 | Color override azul hielo | M1_IZQ iceberg derritiéndose |
 | polar_bear.glb | Quaternius CC0 | Color override crema | M2_IZQ oso polar sobre hielo |
 | fox.glb | KhronosGroup CC0 | Embebida | Fauna decorativa (zorro) |
 | seagull.glb | three.js (Stork) | Color override blanco | Fauna decorativa (ave) |
 | seal.glb | Quaternius CC0 | Color override gris | Fauna decorativa (foca) |
 | whale.glb | Quaternius CC0 | Color override azul-gris | Fauna decorativa (ballena) |
-| rock.glb | Quaternius CC0 | Color override gris | Decoracion rocas (4 posiciones) |
+| rock.glb | Quaternius CC0 | Color override gris | Decoración rocas (4 posiciones) |
 | tree.glb | Kenney CC0 | Sin textura (legacy) | No usado (reemplazado por pine_snow) |
+| igloo_real.obj | 3ds Max (CC0) | MTL nieve (0.88,0.93,0.98) | Vestíbulo, decoración estructura |
+| wolf.glb | Descarga manual | Color override gris-café | Lobos patrullando corredores y vestíbulo |
+| broken_pole.fbx | Blender 2.91 (CC0) | Color override marrón | Postes rotos decorativos |
+| penguin.obj | Generado proceduralmente | Negro + pico naranja | Pingüinos animados por todo el museo |
 
-### Resultados QA Visual v3
+### Resultados QA Visual v4
 
 | Escena | Estado | Notas |
 |--------|--------|-------|
-| Vestibulo | Funcional | Suelo texturizado, paredes, techo. Espacio vacio pero funcional |
+| Vestíbulo | OK | Igloo real, lobo patrullando en X, 2 pingüinos patrullando en Z |
 | M1_IZQ Iceberg | OK | Roca azul que encoge con animT. Escala 5.0 base |
 | M2_IZQ Oso polar | OK | Wolf modelo crema sobre disco de hielo |
 | M3_IZQ Edificios | OK | 3 edificios concreto a escala 1.8. Agua sube con animT |
-| M1_DER Turbina | Funcional | Procedural: poste + gondola + 3 palas rotatorias |
+| M1_DER Turbina | Funcional | Procedural: poste + góndola + 3 palas rotatorias |
 | M2_DER Auto | OK | Kenney car azul con movimiento sinusoidal |
-| M3_DER Arbol | OK | Pino nevado que crece de semilla a arbol completo |
-| M5 Globo | OK | DamagedHelmet texturizado, rotacion constante |
+| M3_DER Árbol | OK | Pino nevado que crece de semilla a árbol completo |
+| M5 Globo | OK | DamagedHelmet texturizado, rotación constante |
 | Fauna | OK | Zorro, ave, foca, ballena, 4 rocas dispersas |
-| Skybox | OK | Cubemap procedural artico con aurora |
+| Skybox | OK | Cubemap procedural ártico con aurora |
 | Agua | OK | Shader sinusoidal + Fresnel, Y=-0.6 (no traspasa suelo) |
 | Nieve | OK | 100 billboards cayendo |
+| Suelo hielo | OK | Textura ice.png en todo el piso del museo |
+| Corredores izq/der | OK | Lobo patrullando Z 12↔57, 2 pingüinos en rangos separados |
+| Pasillo central | OK | 1 pingüino muy lento Z 12↔58 |
+| Sala M5 | OK | 2 lobos en órbita circular, 5 pingüinos en semicírculo |
+| Terreno exterior | OK | Grid 600×600m nevado, montículos procedurales, 12 árboles exteriores |
+
+---
+
+## Cambios en Fase 13 (2026-05-19)
+
+### DecoScene — fauna animada y decoración del museo (`app/src/scene/DecoScene.h`)
+
+Nuevo sistema de decoración ambiental con modelos reales y animación de patrulla:
+
+#### Modelos reales integrados
+- **Igloo** (`igloo_real.obj`, 5.2 MB): escala 0.35, rotación -90° en X para corregir orientación de 3ds Max. MTL custom con color nieve.
+- **Lobo ártico** (`wolf.glb`, 4.3 MB): disco gris eliminado vía manipulación binaria del GLB (mesh `Circle` con `primitives` vaciado). Escala 2.2–3.0×.
+- **Poste roto** (`broken_pole.fbx`, 1.6 MB): escala 0.01 (cm→m, exportado desde Blender 2.91).
+- **Pingüino** (`penguin.obj`, generado): 322v/602f con cuerpo negro y pico naranja (cono `mPyram` separado, posición local `(0, 0.73, 0.22)`, rotado -90° en X).
+
+#### Sistema de patrulla sinusoidal
+```cpp
+PatrolResult patrol(vec3 a, vec3 b, float speed, float phase, float t);
+// s = sin(t*speed+phase): posición ∈ [a,b]
+// fwd = cos(t*speed+phase): orientación (gira 180° en los extremos)
+```
+
+#### Distribución de fauna animada
+| Zona | Lobos | Pingüinos |
+|------|-------|-----------|
+| Vestíbulo | 1 (X: -5↔+5, vel 0.4) | 2 (Z: 8↔2, vel 0.6) |
+| Corredor izq | 1 (Z: 12↔57, vel 0.25) | 2 (rangos Z separados) |
+| Corredor der | 1 (Z: 57↔12, vel 0.25, fase opuesta) | 2 (rangos Z separados) |
+| Pasillo central | — | 1 (Z: 12↔58, vel 0.18) |
+| Sala M5 | 2 (órbita circular r=9m, vel 0.3) | 5 (semicírculo, vel 0.55) |
+
+#### Terreno exterior nevado
+- Grid 600×600m (`makeGrid`) con textura `snow_albedo.png` a Y=-0.15
+- Montículos procedurales (mPyram) en posiciones fijas
+- 12 árboles exteriores con `drawArbolNieve()` (tronco + 3 capas piramidales + nieve)
+
+#### Piso de hielo
+- `Museum.h`: `floorTex.load("textures/ice.png")` — piso con textura de hielo en toda la T
+
+#### Texturas nuevas
+- `snow_albedo.png` (1024×1024): convertida de TIF del pack `58-landscape` con Pillow
+- `snow_detail.png` (1024×1024): detalle adicional de nieve
+
+#### Fix técnico: conflicto de nombre `time` en MSVC
+- Parámetro `float time` renombrado a `float t` en todas las funciones de DecoScene
+- Motivo: `<ctime>` expone `::time()` y MSVC resolvía el nombre como puntero a función en expresiones de inicialización
 
 ---
 
@@ -171,5 +226,6 @@ Si se necesita agregar más teclas en el futuro, añadirlas al array `KEYS[]` en
 | 10 | Integración narrativa (título/cierre) | Completada |
 | 11 | QA rendimiento (165 FPS con VSync off) | Completada |
 | 12 | Colisiones bidireccionales + popup narrativo + audio por módulo | Completada |
-| Assets | Texturas CC0 + modelos Quaternius/Kenney/KhronosGroup | Completada |
+| 13 | DecoScene: fauna animada (lobos + pingüinos), modelos reales, piso hielo, terreno exterior | Completada |
+| Assets | Texturas CC0 + modelos Quaternius/Kenney/KhronosGroup + modelos reales Fase 13 | Completada |
 | QA Visual | Verificación escena por escena con screenshots | Completada |

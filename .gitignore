@@ -59,3 +59,7 @@ despacho/_trabajo/**
 # Instaladores binarios descargados (recuperables, no versionar)
 setup/instaladores/*.exe
 setup/instaladores/*.msi
+
+# Modelos 3D de árboles demasiado pesados para git (>30 MB)
+app/assets/models/tree_real.obj
+app/assets/models/trees9.obj

@@ -90,8 +90,8 @@ public:
         signCube = makeCube();
         // Cargar texturas (fallback: si no existe, Texture::load retorna false y se usa baseColor)
         // Paredes claras (Concrete034 claro), suelo más oscuro (Concrete040)
-        floorTex.load(ASSETS_DIR "textures/wall.png");   // concreto oscuro para suelo
-        wallTex.load(ASSETS_DIR "textures/floor.png");    // concreto claro para paredes
+        floorTex.load(ASSETS_DIR "textures/ice.png");       // piso de hielo
+        wallTex.load(ASSETS_DIR "textures/floor.png");    // paredes concreto claro
         iceTex.load(ASSETS_DIR "textures/ice.png");
     }
 

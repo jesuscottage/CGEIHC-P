@@ -12,6 +12,7 @@
 #include "graphics/Skybox.h"
 #include "scene/Museum.h"
 #include "scene/ModuleScene.h"
+#include "scene/DecoScene.h"
 #include "scene/SnowSystem.h"
 
 #include "imgui.h"
@@ -25,6 +26,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <set>
 
 #include "stb_image_write.h"
 #include "miniaudio.h"
@@ -202,6 +204,9 @@ int main(int argc, char** argv) {
     ModuleScene moduleScene;
     moduleScene.init();
 
+    DecoScene decoScene;
+    decoScene.init();
+
     // ── Skybox ártico ─────────────────────────
     Skybox skybox;
     skybox.init();
@@ -248,6 +253,30 @@ int main(int argc, char** argv) {
 
     // Módulo actualmente activado (nullptr si ninguno)
     ModuleInfo* activeModulePtr  = nullptr;
+
+    // Módulos únicos que el usuario ha activado al menos una vez
+    std::set<std::string> modulosVisitados;
+    const int TOTAL_MODULOS = 7;
+
+    // Animación de recompensa al completar todos los módulos
+    bool  celebracionCompletada = false;
+    float celebracionTimer      = -1.0f; // -1 = inactiva
+    const float CELEBRACION_DURACION = 60.0f;
+
+    // Confeti 3D
+    struct ConfettiParticle {
+        glm::vec3 pos, vel;
+        float r, g, b;
+        float size, rotZ, rotSpeed, life, maxLife;
+    };
+    std::vector<ConfettiParticle> confetti;
+    float confettiBurstAccum    = 0.0f;
+    const float BURST_INTERVAL  = 0.7f;
+    const float BURST_STOP_TIME = 25.0f;
+
+    // Audio de celebración
+    ma_sound celebracionSound;
+    bool     celebracionSoundInit = false;
 
     // ── Textos narrativos por módulo ──────────────────────────────────────
     static const std::map<std::string, std::string> MODULE_TEXTOS = {
@@ -353,9 +382,11 @@ int main(int argc, char** argv) {
                 break;
 
             case AppState::JUGANDO: {
+                if (celebracionTimer >= 0.0f && celebracionTimer < CELEBRACION_DURACION)
+                    celebracionTimer += dt;
+
                 float prevX = camera.position.x;
                 camera.processInput(input, dt);
-                // Colisión museo
                 applyCollision(camera.position, prevX);
                 // Multi-ángulo QA: forzar pitch para capturas
                 if (testCfg.enabled) {
@@ -379,6 +410,28 @@ int main(int argc, char** argv) {
                 if (near && input.isJustPressed(GLFW_KEY_E)) {
                     near->activate();
                     activeModulePtr = near;
+                    modulosVisitados.insert(near->id);
+                    // Activar celebración la primera vez que se completan todos
+                    if (!celebracionCompletada && (int)modulosVisitados.size() >= TOTAL_MODULOS) {
+                        celebracionCompletada = true;
+                        celebracionTimer = 0.0f;
+                        confettiBurstAccum = BURST_INTERVAL; // primera oleada inmediata
+                        popupVisible = false; // cerrar cualquier popup abierto
+                        if (narratorInit) {
+                            ma_sound_stop(&narratorSound);
+                            ma_sound_uninit(&narratorSound);
+                            narratorInit = false;
+                        }
+                        // Canción de celebración
+                        if (audioOk) {
+                            if (ma_sound_init_from_file(&audioEngine,
+                                    ASSETS_DIR "audio/celebracion.wav",
+                                    0, nullptr, nullptr, &celebracionSound) == MA_SUCCESS) {
+                                ma_sound_start(&celebracionSound);
+                                celebracionSoundInit = true;
+                            }
+                        }
+                    }
                     // Abrir popup narrativo
                     auto it = MODULE_TEXTOS.find(near->id);
                     if (it != MODULE_TEXTOS.end()) {
@@ -432,6 +485,63 @@ int main(int argc, char** argv) {
                         if (m.animT >= 1.0f) done++;
                     modulesCompleted = done;
                     // CIERRE desactivado para demo libre — salir solo con ESC
+                }
+
+                // ── Confeti: spawn periódico y física ────────────────────
+                if (celebracionTimer >= 0.0f) {
+                    auto spawnBurst = [&]() {
+                        static const float PAL[][3] = {
+                            {1.0f,0.18f,0.18f}, {0.15f,0.75f,1.0f}, {0.18f,1.0f,0.35f},
+                            {1.0f,0.88f,0.08f}, {1.0f,0.38f,0.88f}, {1.0f,0.55f,0.10f},
+                            {0.55f,0.18f,1.0f}, {0.0f,1.0f,0.80f},  {1.0f,1.0f,1.0f},
+                        };
+                        glm::vec3 origin = camera.position + glm::vec3(
+                            ((rand()%201)-100)*0.08f,
+                             0.2f + (rand()%101)*0.010f,   // justo sobre la cabeza
+                            ((rand()%201)-100)*0.08f);
+                        for (int i = 0; i < 380; i++) {
+                            ConfettiParticle p;
+                            p.pos = origin;
+                            float a  = (rand()%628)*0.01f;
+                            float hs = 1.0f + (rand()%100)*0.040f;  // más spread horizontal
+                            float vs = 0.3f + (rand()%100)*0.025f;  // velocidad vertical baja
+                            p.vel = glm::vec3(cosf(a)*hs, vs, sinf(a)*hs);
+                            int ci = rand()%9;
+                            p.r=PAL[ci][0]; p.g=PAL[ci][1]; p.b=PAL[ci][2];
+                            p.size     = 0.10f + (rand()%100)*0.0012f;
+                            p.rotZ     = (rand()%628)*0.01f;
+                            p.rotSpeed = ((rand()%200)-100)*0.04f;
+                            p.maxLife  = 3.5f + (rand()%100)*0.025f;
+                            p.life     = 0.0f;
+                            confetti.push_back(p);
+                        }
+                    };
+
+                    if (celebracionTimer < BURST_STOP_TIME) {
+                        confettiBurstAccum += dt;
+                        if (confettiBurstAccum >= BURST_INTERVAL) {
+                            confettiBurstAccum -= BURST_INTERVAL;
+                            spawnBurst();
+                        }
+                    }
+                    const float G = -5.0f;
+                    for (auto& p : confetti) {
+                        p.vel.y += G * dt;
+                        p.pos   += p.vel * dt;
+                        p.rotZ  += p.rotSpeed * dt;
+                        p.life  += dt;
+                    }
+                    confetti.erase(std::remove_if(confetti.begin(), confetti.end(),
+                        [](const ConfettiParticle& cp){ return cp.life >= cp.maxLife; }),
+                        confetti.end());
+                    if (celebracionTimer >= CELEBRACION_DURACION) {
+                        confetti.clear();
+                        if (celebracionSoundInit) {
+                            ma_sound_stop(&celebracionSound);
+                            ma_sound_uninit(&celebracionSound);
+                            celebracionSoundInit = false;
+                        }
+                    }
                 }
                 break;
             }
@@ -519,6 +629,49 @@ int main(int argc, char** argv) {
             ImGui::Text("Yaw: %.1f  Pitch: %.1f", camera.yaw, camera.pitch);
             ImGui::End();
 
+            // ── Contador de exhibiciones (esquina superior der) ──────────
+            {
+                const float pw = 220.0f;
+                const float ph = 30.0f + 18.0f * TOTAL_MODULOS + 12.0f;
+                ImGui::SetNextWindowPos(
+                    ImVec2(window.width() - pw - 10.0f, 10.0f), ImGuiCond_Always);
+                ImGui::SetNextWindowSize(ImVec2(pw, ph), ImGuiCond_Always);
+                ImGui::SetNextWindowBgAlpha(0.60f);
+                ImGui::Begin("Contador", nullptr,
+                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoSavedSettings);
+
+                int visitados = (int)modulosVisitados.size();
+                bool completo = visitados >= TOTAL_MODULOS;
+                ImVec4 colorTitulo = completo
+                    ? ImVec4(0.4f, 1.0f, 0.5f, 1.0f)
+                    : ImVec4(0.55f, 0.82f, 1.0f, 1.0f);
+                ImGui::TextColored(colorTitulo,
+                    "Exhibiciones: %d / %d", visitados, TOTAL_MODULOS);
+                ImGui::Separator();
+
+                // Lista de módulos con check o punto según estado
+                static const std::pair<std::string,std::string> ORDEN_MODULOS[] = {
+                    {"M1_IZQ", "Deshielo del Artico"},
+                    {"M2_IZQ", "Fauna en Peligro"},
+                    {"M3_IZQ", "Ciudades Inundadas"},
+                    {"M1_DER", "Energia Eolica"},
+                    {"M2_DER", "Auto Electrico"},
+                    {"M3_DER", "Captura de Carbono"},
+                    {"M5",     "Acuerdos por el Clima"},
+                };
+                for (const auto& [id, nombre] : ORDEN_MODULOS) {
+                    bool visto = modulosVisitados.count(id) > 0;
+                    if (visto)
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f),
+                            "  [v] %s", nombre.c_str());
+                    else
+                        ImGui::TextColored(ImVec4(0.55f, 0.55f, 0.55f, 1.0f),
+                            "  [ ] %s", nombre.c_str());
+                }
+                ImGui::End();
+            }
+
             // ── Panel narrativo (parte inferior central) ─────────────────
             // Muestra info del módulo cercano + barra de progreso si activo
             ModuleInfo* near = museum.getNearModule(camera.position);
@@ -546,6 +699,75 @@ int main(int argc, char** argv) {
                             "Animacion completada");
                 }
                 ImGui::End();
+            }
+
+            // ── Celebración: letrero flotante ────────────────────────────
+            if (celebracionTimer >= 0.0f && celebracionTimer < CELEBRACION_DURACION && !popupVisible) {
+                float tCel  = celebracionTimer / CELEBRACION_DURACION;
+                float alpha = tCel > 0.9f ? (1.0f - tCel) / 0.1f : 1.0f;
+                float bobY  = sinf((float)glfwGetTime() * 2.0f) * 5.0f;
+                float pw = 540.0f, ph = 128.0f;
+                ImGui::SetNextWindowPos(
+                    ImVec2((window.width()  - pw) * 0.5f,
+                           (window.height() - ph) * 0.5f + bobY), ImGuiCond_Always);
+                ImGui::SetNextWindowSize(ImVec2(pw, ph), ImGuiCond_Always);
+                ImGui::SetNextWindowBgAlpha(alpha * 0.90f);
+                ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.03f, 0.20f, 0.06f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Border,   ImVec4(0.30f, 1.0f, 0.40f, 1.0f));
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2.0f);
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,  10.0f);
+                ImGui::Begin("Letrero", nullptr,
+                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoSavedSettings |
+                    ImGuiWindowFlags_NoInputs);
+                ImGui::Spacing();
+                { const char* t = "Felicidades!";
+                  ImGui::SetCursorPosX((pw - ImGui::CalcTextSize(t).x) * 0.5f);
+                  ImGui::TextColored(ImVec4(1.0f, 0.88f, 0.18f, alpha), "%s", t); }
+                ImGui::Spacing();
+                { const char* t = "Has protegido el Polo Norte.";
+                  ImGui::SetCursorPosX((pw - ImGui::CalcTextSize(t).x) * 0.5f);
+                  ImGui::TextColored(ImVec4(0.82f, 1.0f, 0.82f, alpha), "%s", t); }
+                ImGui::Spacing();
+                { const char* t = "Gracias por recorrer todas las exhibiciones.";
+                  ImGui::SetCursorPosX((pw - ImGui::CalcTextSize(t).x) * 0.5f);
+                  ImGui::TextColored(ImVec4(0.55f, 0.85f, 1.0f, alpha), "%s", t); }
+                ImGui::PopStyleVar(2);
+                ImGui::PopStyleColor(2);
+                ImGui::End();
+            }
+
+            // ── Celebración: confeti 3D proyectado ──────────────────────
+            if (celebracionTimer >= 0.0f && !confetti.empty()) {
+                glm::mat4 celView = camera.getViewMatrix();
+                glm::mat4 celProj = camera.getProjectionMatrix(window.aspectRatio());
+                float W = (float)window.width(), H = (float)window.height();
+                // Proyecta posición 3D a coordenadas de pantalla; devuelve w<0 si está detrás
+                auto project = [&](const glm::vec3& wp) -> glm::vec4 {
+                    glm::vec4 clip = celProj * celView * glm::vec4(wp, 1.0f);
+                    if (clip.w <= 0.001f) return glm::vec4(-9999.f,-9999.f,0.f,-1.f);
+                    float nx = clip.x/clip.w, ny = clip.y/clip.w;
+                    return glm::vec4((nx+1.f)*0.5f*W, (1.f-ny)*0.5f*H, 0.f, clip.w);
+                };
+                ImDrawList* dl = ImGui::GetBackgroundDrawList();
+                for (const auto& p : confetti) {
+                    auto sc = project(p.pos);
+                    if (sc.w < 0.05f) continue;
+                    float half = glm::clamp((p.size * 80.f) / sc.w, 1.5f, 30.f);
+                    if (sc.x < -half || sc.x > W+half ||
+                        sc.y < -half || sc.y > H+half) continue;
+                    float fade = 1.0f - p.life / p.maxLife;
+                    ImU32 col  = IM_COL32((int)(p.r*255.f),(int)(p.g*255.f),(int)(p.b*255.f),
+                                          (int)(fade * 215.f));
+                    // Quad girado (confeti rectangular)
+                    float c = cosf(p.rotZ), s = sinf(p.rotZ);
+                    float hw = half, hh = half * 0.38f;
+                    ImVec2 q0(sc.x + hw*c - hh*s, sc.y + hw*s + hh*c);
+                    ImVec2 q1(sc.x + hw*c + hh*s, sc.y + hw*s - hh*c);
+                    ImVec2 q2(sc.x - hw*c + hh*s, sc.y - hw*s - hh*c);
+                    ImVec2 q3(sc.x - hw*c - hh*s, sc.y - hw*s + hh*c);
+                    dl->AddQuadFilled(q0, q1, q2, q3, col);
+                }
             }
 
             // ── Popup narrativo ──────────────────────────────────────────
@@ -618,6 +840,9 @@ int main(int argc, char** argv) {
 
             // Fauna decorativa estática
             moduleScene.drawFauna(stdShader);
+
+            // Decoración procedural low-poly del museo
+            decoScene.draw(stdShader, totalTime);
 
             // Letreros 3D de color sobre cada módulo
             museum.drawSigns(stdShader);
@@ -697,11 +922,13 @@ int main(int argc, char** argv) {
 
     museum.free();
     moduleScene.free();
+    decoScene.free();
     skybox.free();
     waterMesh.free();
     snow.free();
     whiteTex.free();
-    if (narratorInit) { ma_sound_stop(&narratorSound); ma_sound_uninit(&narratorSound); }
+    if (narratorInit)        { ma_sound_stop(&narratorSound);     ma_sound_uninit(&narratorSound);     }
+    if (celebracionSoundInit){ ma_sound_stop(&celebracionSound); ma_sound_uninit(&celebracionSound); }
     if (audioOk) ma_engine_uninit(&audioEngine);
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
