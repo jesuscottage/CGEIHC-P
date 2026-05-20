@@ -71,29 +71,82 @@ public:
     }
 
     void draw(Shader& sh) {
-        // Posiciones Z de las pinturas a lo largo de los corredores (10-60 m)
+        // Posiciones Z a lo largo de los corredores (13–53 m, paso de 8 m)
         const float ZS[] = { 13.f, 21.f, 29.f, 37.f, 45.f, 53.f };
         const int   NZ   = 6;
-        const glm::vec3 FC = { 0.22f, 0.13f, 0.06f }; // color del marco (marrón oscuro)
+        const glm::vec3 FC = { 0.22f, 0.13f, 0.06f }; // marrón oscuro del marco
         const float PI   = glm::pi<float>();
 
-        glDisable(GL_CULL_FACE); // los quads son de una sola cara — desactivar culling
+        // Cara interna de cada pared (calculada desde Museum.h):
+        //   Pared ext. izq:  centro X=-20.25, escala X=0.5  →  cara interior X=-20.0
+        //   Pared int. izq:  centro X= -4.25, escala X=0.5  →  cara interior X= -4.5
+        //   Pared int. der:  centro X=  4.25, escala X=0.5  →  cara interior X=  4.5
+        //   Pared ext. der:  centro X= 20.25, escala X=0.5  →  cara interior X= 20.0
+        //   Paredes cierre corredor: centro Z=65.25, escala Z=0.5 → cara interior Z=65.0
+        //   Pared trasera M5: centro Z=75.25, escala Z=0.5  →  cara interior Z=75.0
+        //   Pared frontal vestíbulo: centro Z=-5.25, escala Z=0.5 → cara interior Z=-5.0
+        //   Pared lat. izq. vestíb.: centro X=-10.25, escala X=0.5 → cara interior X=-10.0
+        //   Pared lat. der. vestíb.: centro X= 10.25, escala X=0.5 → cara interior X= 10.0
 
-        // ── Corredor izquierdo ── pinturas 01-06 (consecuencias) ──────────────
+        glDisable(GL_CULL_FACE);
+
+        // ── Corredor izquierdo ── pinturas 01-06 (consecuencias) ─────────────
+        // Pintura pegada a cara interna: desplazamiento +0.01 m desde la cara
         for (int i = 0; i < NZ; i++) {
-            // Pared exterior izquierda (X=-20, normal +X, observador mira +X): sin espejo
-            drawPainting(sh, { -19.7f, CY, ZS[i] }, 0.f,  i,     false, FC);
-            // Pared interior izquierda (X=-4.25, normal -X, observador mira -X): sin espejo
-            drawPainting(sh, {  -4.85f, CY, ZS[i] }, PI,   i,     false, FC);
+            // Pared exterior izq (cara X=-20.0, normal +X)
+            drawPainting(sh, { -19.99f, CY, ZS[i] }, 0.f, i,     false, FC);
+            // Pared interior izq — cara hacia corredor izq (cara X=-4.5, normal -X)
+            drawPainting(sh, {  -4.51f, CY, ZS[i] }, PI,  i,     false, FC);
         }
 
-        // ── Corredor derecho ── pinturas 07-12 (soluciones) ───────────────────
+        // ── Corredor derecho ── pinturas 07-12 (soluciones) ──────────────────
         for (int i = 0; i < NZ; i++) {
-            // Pared interior derecha (X=+4.25, normal +X, observador mira -X): CON espejo
-            drawPainting(sh, {  4.85f, CY, ZS[i] }, 0.f,  6 + i, true,  FC);
-            // Pared exterior derecha (X=+20, normal -X, observador mira +X): CON espejo
-            drawPainting(sh, { 19.7f,  CY, ZS[i] }, PI,   6 + i, true,  FC);
+            // Pared interior der — cara hacia corredor der (cara X=4.5, normal +X)
+            drawPainting(sh, {  4.51f,  CY, ZS[i] }, 0.f, 6 + i, true,  FC);
+            // Pared exterior der (cara X=20.0, normal -X)
+            drawPainting(sh, { 19.99f,  CY, ZS[i] }, PI,  6 + i, true,  FC);
         }
+
+        // ── Corredor central (pasillo entre X=-4 y X=+4) ─────────────────────
+        // Cara exterior de la pared interior izq (cara X=-4.0, normal +X)
+        // Cara exterior de la pared interior der (cara X= 4.0, normal -X)
+        for (int i = 0; i < NZ; i++) {
+            drawPainting(sh, { -3.99f, CY, ZS[i] }, 0.f, i       % N, false, FC);
+            drawPainting(sh, {  3.99f, CY, ZS[i] }, PI,  (6 + i) % N, false, FC);
+        }
+
+        // ── Paredes de cierre de corredores (Z=65, cara interior Z=65.0) ─────
+        // yRot=PI/2 → normal -Z, visible para jugador que avanza en +Z
+        // Corredor izq: X∈[-20,-4] → pinturas en X=-17,-12,-7
+        const float XS_IZQ[] = { -17.f, -12.f, -7.f };
+        // Corredor der: X∈[4,20]   → pinturas en X=7,12,17
+        const float XS_DER[] = {   7.f,  12.f,  17.f };
+        for (int i = 0; i < 3; i++) {
+            drawPainting(sh, { XS_IZQ[i], CY, 64.99f }, PI*0.5f, i       % N, false, FC);
+            drawPainting(sh, { XS_DER[i], CY, 64.99f }, PI*0.5f, (6+i)   % N, false, FC);
+        }
+
+        // ── Pared trasera Sala M5 (Z=75, cara interior Z=75.0) ───────────────
+        // X∈[-20,20] → 5 pinturas espaciadas 8 m
+        const float XS_M5[] = { -16.f, -8.f, 0.f, 8.f, 16.f };
+        for (int i = 0; i < 5; i++) {
+            drawPainting(sh, { XS_M5[i], CY, 74.99f }, PI*0.5f, i % N, false, FC);
+        }
+
+        // ── Vestíbulo ────────────────────────────────────────────────────────
+        // Pared frontal (Z=-5, cara interior Z=-5.0, normal +Z → yRot=-PI/2)
+        // X∈[-10,10] → 3 pinturas
+        const float XS_VEST[] = { -6.f, 0.f, 6.f };
+        for (int i = 0; i < 3; i++) {
+            drawPainting(sh, { XS_VEST[i], CY, -4.99f }, -PI*0.5f, i % N, false, FC);
+        }
+        // Pared lateral izquierda (X=-10, cara X=-10.0, normal +X)
+        // Z∈[-5,10] → 2 pinturas
+        drawPainting(sh, { -9.99f, CY,  0.5f }, 0.f, 0 % N, false, FC);
+        drawPainting(sh, { -9.99f, CY,  7.5f }, 0.f, 1 % N, false, FC);
+        // Pared lateral derecha (X=10, cara X=10.0, normal -X)
+        drawPainting(sh, {  9.99f, CY,  0.5f }, PI,  6 % N, false, FC);
+        drawPainting(sh, {  9.99f, CY,  7.5f }, PI,  7 % N, false, FC);
 
         glEnable(GL_CULL_FACE);
     }

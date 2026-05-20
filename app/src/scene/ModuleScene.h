@@ -409,29 +409,27 @@ private:
         }
     }
 
-    // ── M2_DER: Auto eléctrico que rota sobre su propio eje ───────────────
-    // animT=0: coche estático
-    // animT=1: rotación continua sobre Y a 45°/s
+    // ── M2_DER: Tesla Model S — azul, rota sobre Y al activar animación ──────
+    // animT=0: coche estático en azul eléctrico
+    // animT>0: rota sobre su propio eje Y a 45°/s máximo
     void drawElectricCar(Shader& sh, glm::vec3 c, float t, float time) {
-        // Color: gris metálico → azul eléctrico vivo según animT
-        glm::vec3 carCol = glm::mix(
-            glm::vec3(0.28f, 0.32f, 0.38f),
-            glm::vec3(0.10f, 0.50f, 1.00f), t);
+        // Azul eléctrico fijo — no depende de animT
+        glm::vec3 carCol(0.08f, 0.38f, 0.90f);
 
         if (mModelSCar.loaded) {
-            // Rotación lenta sobre Y: 0 cuando parado, 20°/s a animT=1
-            float yAngle = glm::radians(20.0f * t * time);
+            // Rotación sobre Y: proporcional a animT → 0°/s en reposo, 45°/s a t=1
+            float yAngle = glm::radians(45.0f * t * time);
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z});
             m = glm::rotate(m, yAngle, {0.f, 1.f, 0.f});
-            m = glm::scale(m, glm::vec3(0.9f));
+            m = glm::scale(m, glm::vec3(1.0f));
             mdl(sh, m);
-            // Omitir meshes 0-3 (Plane_* de suelo del OBJ que tapan el piso del museo)
-            for (int i = 4; i < (int)mModelSCar.meshes.size(); i++)
+            // Omitir mesh 0: plano de suelo (Plane.030_Plane.018) que tapa el piso del museo
+            for (int i = 1; i < (int)mModelSCar.meshes.size(); i++)
                 mModelSCar.drawMesh(i, sh, &carCol);
             return;
         }
 
-        // Fallback: modelo Kenney con movimiento sinusoidal si ModelS no cargó
+        // Fallback: modelo Kenney azul si ModelS no cargó
         float zOff = sinf(time * glm::pi<float>() / 3.0f) * 2.4f * t;
         if (mCarModel.loaded) {
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z + zOff});

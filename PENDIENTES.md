@@ -1,8 +1,8 @@
 # Pendientes del Proyecto — CGEIHC-P
 
 > Proyecto: Calentamiento global en el polo norte
-> Última actualización: 2026-05-19
-> Estado general: **Fase 14 completa — Galería de arte + modelos reales (turbina, Tesla Model S, fábrica con humo)**
+> Última actualización: 2026-05-20
+> Estado general: **Fase 15 completa — Galería en todas las paredes + Tesla Model S real con rotación**
 
 ---
 
@@ -44,7 +44,8 @@ El resto de dependencias (GLFW, GLM, Assimp, ImGui) se descargan automáticament
 | Modelo | Origen | Textura | Uso en escena |
 |--------|--------|---------|---------------|
 | pine_snow.glb | Quaternius CC0 | Embebida | M3_DER árbol que crece |
-| electric_car.glb | Kenney CC0 | Color override azul | M2_DER auto eléctrico |
+| electric_car.glb | Kenney CC0 | Color override azul | M2_DER auto eléctrico (fallback si ModelS.obj no carga) |
+| ModelS.obj | Blender v2.79 (manual) | Color override azul fijo | M2_DER Tesla Model S principal — 115 objetos, escala 1:1 m |
 | building_a/b/c.glb | Kenney CC0 | Color override concreto | M3_IZQ ciudad inundada |
 | globe.glb | KhronosGroup CC0 | Embebida (metal) | M5 globo giratorio |
 | iceberg.glb | Quaternius CC0 | Color override azul hielo | M1_IZQ iceberg derritiéndose |
@@ -69,7 +70,7 @@ El resto de dependencias (GLFW, GLM, Assimp, ImGui) se descargan automáticament
 | M2_IZQ Oso polar | OK | Wolf modelo crema sobre disco de hielo |
 | M3_IZQ Edificios | OK | 3 edificios concreto a escala 1.8. Agua sube con animT |
 | M1_DER Turbina | OK | Modelo real EolicOBJ.obj — palas 0-2 giran, estáticos 3-5, suelo omitido |
-| M2_DER Auto | OK | Kenney car azul con movimiento sinusoidal |
+| M2_DER Auto | OK | Tesla Model S real (ModelS.obj), azul fijo, rota sobre Y al presionar E |
 | M3_DER Árbol | OK | Pino nevado que crece de semilla a árbol completo |
 | M5 Globo | OK | DamagedHelmet texturizado, rotación constante |
 | Fauna | OK | Zorro, ave, foca, ballena, 4 rocas dispersas |
@@ -185,6 +186,66 @@ Si se necesita agregar más teclas en el futuro, añadirlas al array `KEYS[]` en
 
 ---
 
+## Cambios en Fase 15 (2026-05-20)
+
+### Galería de arte — cobertura total de paredes (`app/src/scene/GalleryScene.h`)
+
+#### Pinturas pegadas a las paredes (flush)
+Las pinturas de los corredores estaban flotando 0.3–0.35 m frente a las paredes. Corregido usando la cara interna exacta de cada muro:
+
+| Pared | Posición anterior | Posición corregida |
+|-------|-------------------|--------------------|
+| Ext. izq. (X=−20) | X=−19.70 | X=−19.99 |
+| Int. izq. (X=−4.25) | X=−4.85 | X=−4.51 |
+| Int. der. (X=+4.25) | X=+4.85 | X=+4.51 |
+| Ext. der. (X=+20) | X=+19.70 | X=+19.99 |
+
+#### Nuevas paredes con pinturas
+Todas las paredes del museo ahora tienen cuadros enmarcados:
+
+| Zona | Pared | Pinturas | Orientación |
+|------|-------|----------|-------------|
+| Corredor central | Int. izq. cara centro (X=−4.0) | 6 (01-06) | yRot=0 (normal +X) |
+| Corredor central | Int. der. cara centro (X=+4.0) | 6 (07-12) | yRot=π (normal −X) |
+| Cierre corredores | Pared Z=65, corredor izq. | 3 (X=−17,−12,−7) | yRot=π/2 (normal −Z) |
+| Cierre corredores | Pared Z=65, corredor der. | 3 (X=7,12,17) | yRot=π/2 (normal −Z) |
+| Sala M5 | Pared trasera Z=75 | 5 (X=−16,−8,0,8,16) | yRot=π/2 (normal −Z) |
+| Vestíbulo | Pared frontal Z=−5 | 3 (X=−6,0,6) | yRot=−π/2 (normal +Z) |
+| Vestíbulo | Pared lat. izq. X=−10 | 2 (Z=0.5, 7.5) | yRot=0 (normal +X) |
+| Vestíbulo | Pared lat. der. X=+10 | 2 (Z=0.5, 7.5) | yRot=π (normal −X) |
+
+**Total de pinturas visibles en escena**: 40 (vs. 24 anteriores)
+
+#### Notas técnicas
+- Las paredes con normal en eje Z usan `makeWallQuad` rotado con `yRot=±π/2`, convirtiendo el ancho del quad de Z a X.
+- El marco (4 tiras) funciona correctamente para cualquier yRot porque `glm::translate(base, offset)` opera en espacio local.
+
+---
+
+### Auto Eléctrico — Tesla Model S real (`app/src/scene/ModuleScene.h`)
+
+#### Modelo reemplazado
+- **Antes**: `electric_car.glb` (Kenney, movimiento sinusoidal en Z)
+- **Ahora**: `ModelS.obj` (Blender v2.79, 115 objetos, escala 1:1 en metros)
+  - Fuente: `uploads_files_2035868_Model+S.obj` (descarga manual)
+  - Copiado a `app/assets/models/ModelS.obj`
+
+#### Cambios de comportamiento
+| Aspecto | Antes | Ahora |
+|---------|-------|-------|
+| Color | Interpolación gris→azul con `animT` | Azul eléctrico fijo `(0.08, 0.38, 0.90)` |
+| Animación | Movimiento sinusoidal en Z | Rotación continua sobre eje Y |
+| Velocidad rotación | 20°/s (solo cuando `animT=1`) | 45°/s proporcional a `animT` |
+| Meshes omitidos | 0–3 (planos de suelo del showroom) | Solo 0 (`Plane.030` — piso 37×37 m) |
+
+#### Fórmula de rotación
+```cpp
+float yAngle = glm::radians(45.0f * t * time);
+// t=0 → sin rotación; t=1 → 45°/s continuo
+```
+
+---
+
 ## Cambios en Fase 14 (2026-05-19)
 
 ### Modelos reales en exhibiciones (`app/src/scene/ModuleScene.h`)
@@ -285,5 +346,6 @@ Si se necesita agregar más teclas en el futuro, añadirlas al array `KEYS[]` en
 | 12 | Colisiones bidireccionales + popup narrativo + audio por módulo | Completada |
 | 13 | DecoScene: fauna animada (lobos + pingüinos), modelos reales, piso hielo, terreno exterior | Completada |
 | 14 | Modelos reales en exhibiciones (turbina EolicOBJ, Tesla Model S, fábrica) + galería de arte 24 pinturas | Completada |
+| 15 | Galería en todas las paredes (flush + corredor central + cierre + M5 + vestíbulo) + Tesla Model S real con rotación Y | Completada |
 | Assets | Texturas CC0 + modelos Quaternius/Kenney/KhronosGroup + modelos reales Fase 13-14 | Completada |
 | QA Visual | Verificación escena por escena con screenshots | Completada |
