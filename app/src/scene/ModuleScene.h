@@ -377,11 +377,17 @@ private:
             }
         }
 
-        // Plano de agua (siempre procedural)
-        if (waterY > -0.5f) {
-            col(sh, glm::vec3(0.14f, 0.38f, 0.80f));
-            mdl(sh, TS({c.x, c.y + waterY, c.z}, {7.0f, 0.16f, 7.0f}));
+        // Volumen de agua que se llena desde el suelo hacia arriba
+        // Se desactiva culling para que ambas caras del cubo sean visibles
+        // (sin esto las caras traseras/interiores son invisibles)
+        if (waterY > -0.55f) {
+            float volH    = waterY + 0.6f;
+            float centerY = (-0.6f + waterY) * 0.5f;
+            col(sh, glm::vec3(0.10f, 0.45f, 0.82f));
+            mdl(sh, TS({c.x, c.y + centerY, c.z}, {8.0f, volH, 8.0f}));
+            glDisable(GL_CULL_FACE);
             mCube.draw();
+            glEnable(GL_CULL_FACE);
         }
     }
 
