@@ -31,6 +31,9 @@ public:
         mIcebergModel.load(ASSETS_DIR "models/iceberg.glb");
         mRockModel.load(ASSETS_DIR "models/rock.glb");       // Quaternius CC0 (decoración)
         mBearModel.load(ASSETS_DIR "models/polar_bear.glb"); // Quaternius Wolf CC0
+        mEolicModel.load(ASSETS_DIR "models/EolicOBJ.obj");  // Turbina eólica real
+        mModelSCar.load(ASSETS_DIR "models/ModelS.obj");     // Tesla Model S (reemplaza Kenney)
+        mFactoryModel.load(ASSETS_DIR "models/Factory.obj"); // Fábrica — M3_DER Captura de Carbono
         // Fauna
         mFoxModel.load(ASSETS_DIR "models/fox.glb");       // KhronosGroup Fox (textura embebida)
         mBirdModel.load(ASSETS_DIR "models/seagull.glb");   // three.js Stork
@@ -51,7 +54,7 @@ public:
         else if (id == "M3_IZQ") drawFlood      (sh, center, animT);
         else if (id == "M1_DER") drawTurbine    (sh, center, animT, time);
         else if (id == "M2_DER") drawElectricCar(sh, center, animT, time);
-        else if (id == "M3_DER") drawTree       (sh, center, animT);
+        else if (id == "M3_DER") drawTree       (sh, center, animT, time);
         else if (id == "M5")     drawGlobe      (sh, center, animT, time);
     }
 
@@ -62,6 +65,9 @@ public:
         mGlobeModel.free(); mIcebergModel.free(); mRockModel.free();
         mBearModel.free(); mFoxModel.free(); mBirdModel.free();
         mSealModel.free(); mWhaleModel.free();
+        mEolicModel.free();
+        mModelSCar.free();
+        mFactoryModel.free();
     }
 
     // ── Fauna decorativa estática ──────────────────────────────────────────
@@ -132,6 +138,9 @@ private:
     Mesh mCube, mDisc;
     Model mPineModel, mCarModel, mBuildingA, mBuildingB, mBuildingC, mGlobeModel;
     Model mIcebergModel, mRockModel, mBearModel, mFoxModel, mBirdModel, mSealModel, mWhaleModel;
+    Model mEolicModel;
+    Model mModelSCar;
+    Model mFactoryModel;
 
     // ── Fauna helpers ──────────────────────────────────────────────────────
     void drawSeal(Shader& sh, glm::vec3 pos) {
@@ -333,27 +342,60 @@ private:
 
     // ── M1_DER: Turbina eólica que acelera ────────────────────────────────
     // animT=0: turbina parada
-    // animT=1: girando a 120°/s
+    // animT=1: girando a velocidad máxima
+    //
+    // Estructura del OBJ (EolicOBJ.obj, Blender 2020):
+    //   mesh 0 Cylinder          → pala 1
+    //   mesh 1 Cylinder.001      → pala 2
+    //   mesh 2 Cylinder.002      → pala 3
+    //   mesh 3 Roundcube         → góndola
+    //   mesh 4 Cube_Cube.002     → cono/hub
+    //   mesh 5 Cylinder.003      → torre
+    //   mesh 6-10                → suelo/vegetación (no se dibuja en el museo)
+    //
+    // Hub del rotor en espacio modelo: (0, 27.85, 1.3) — eje de rotación Z.
     void drawTurbine(Shader& sh, glm::vec3 c, float t, float time) {
-        // Base circular (cimiento)
+        if (mEolicModel.loaded) {
+            const float    sc  = 0.28f;                      // escala: torre ~27.5u → ~7.7m
+            const glm::vec3 hub(0.f, 27.85f, 1.3f);          // hub en espacio modelo
+            float speed = glm::mix(0.0f, 2.5f, t);           // rad/s (0 → ~24 RPM)
+            float angle = speed * time;                       // radianes acumulados
+
+            // Bajar la turbina para que no sobresalga del techo (Y=6.0).
+            // Con c.y=1.7 y sc=0.28 la cima queda en ~9.4 → se baja 3.8u (base a ~-2.1).
+            glm::vec3 c2 = {c.x, c.y - 3.8f, c.z};
+
+            // Partes estáticas: góndola(3), cono(4), torre(5)
+            glm::mat4 mSt = glm::scale(glm::translate(glm::mat4(1.f), c2), glm::vec3(sc));
+            mdl(sh, mSt);
+            for (int i = 3; i <= 5; i++)
+                mEolicModel.drawMesh(i, sh);
+
+            // Palas giratorias: meshes 0,1,2 — rotación alrededor del hub en espacio modelo
+            glm::mat4 mBl = glm::translate(glm::mat4(1.f), c2);
+            mBl = glm::scale(mBl, glm::vec3(sc));
+            mBl = glm::translate(mBl,  hub);
+            mBl = glm::rotate(mBl, angle, glm::vec3(0.f, 0.f, 1.f));
+            mBl = glm::translate(mBl, -hub);
+            mdl(sh, mBl);
+            for (int i = 0; i <= 2; i++)
+                mEolicModel.drawMesh(i, sh);
+
+            return;
+        }
+
+        // Fallback procedural (si el modelo no cargó)
         col(sh, glm::vec3(0.65f, 0.66f, 0.68f));
         mdl(sh, TS({c.x, c.y + 0.15f, c.z}, {1.2f, 0.3f, 1.2f}));
         mCube.draw();
-
-        // Poste — grueso y alto
         col(sh, glm::vec3(0.88f, 0.89f, 0.91f));
         mdl(sh, TS({c.x, c.y + 2.8f, c.z}, {0.55f, 5.3f, 0.55f}));
         mCube.draw();
-
-        // Góndola — visible
         col(sh, glm::vec3(0.92f, 0.92f, 0.94f));
         mdl(sh, TS({c.x, c.y + 5.5f, c.z - 0.3f}, {0.8f, 0.55f, 1.2f}));
         mCube.draw();
-
-        // 3 palas — grandes
         float speed = glm::mix(0.0f, 80.0f, t);
         float angle = speed * time;
-
         glm::vec3 bladeCol{0.95f, 0.96f, 0.98f};
         for (int i = 0; i < 3; i++) {
             float a = angle + i * 120.0f;
@@ -367,18 +409,31 @@ private:
         }
     }
 
-    // ── M2_DER: Auto eléctrico que circula y se ilumina ───────────────────
-    // animT=0: auto apagado, quieto
-    // animT=1: auto luminoso, moviéndose
+    // ── M2_DER: Auto eléctrico que rota sobre su propio eje ───────────────
+    // animT=0: coche estático
+    // animT=1: rotación continua sobre Y a 45°/s
     void drawElectricCar(Shader& sh, glm::vec3 c, float t, float time) {
-        // Movimiento sinusoidal (solo cuando t > 0)
-        float zOff = sinf(time * glm::pi<float>() / 3.0f) * 2.4f * t;
+        // Color: gris metálico → azul eléctrico vivo según animT
+        glm::vec3 carCol = glm::mix(
+            glm::vec3(0.28f, 0.32f, 0.38f),
+            glm::vec3(0.10f, 0.50f, 1.00f), t);
 
+        if (mModelSCar.loaded) {
+            // Rotación lenta sobre Y: 0 cuando parado, 20°/s a animT=1
+            float yAngle = glm::radians(20.0f * t * time);
+            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z});
+            m = glm::rotate(m, yAngle, {0.f, 1.f, 0.f});
+            m = glm::scale(m, glm::vec3(0.9f));
+            mdl(sh, m);
+            // Omitir meshes 0-3 (Plane_* de suelo del OBJ que tapan el piso del museo)
+            for (int i = 4; i < (int)mModelSCar.meshes.size(); i++)
+                mModelSCar.drawMesh(i, sh, &carCol);
+            return;
+        }
+
+        // Fallback: modelo Kenney con movimiento sinusoidal si ModelS no cargó
+        float zOff = sinf(time * glm::pi<float>() / 3.0f) * 2.4f * t;
         if (mCarModel.loaded) {
-            // Color: gris metálico → azul eléctrico con animT (forzado, Kenney no tiene textura embebida)
-            glm::vec3 carCol = glm::mix(
-                glm::vec3(0.30f, 0.34f, 0.40f),
-                glm::vec3(0.12f, 0.55f, 0.95f), t);
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z + zOff});
             m = glm::rotate(m, glm::radians(90.f), {0.f, 1.f, 0.f});
             m = glm::scale(m, glm::vec3(0.8f));
@@ -387,22 +442,13 @@ private:
             return;
         }
 
-        // Color: gris metálico → azul eléctrico vivo
-        glm::vec3 carCol = glm::mix(
-            glm::vec3(0.28f, 0.32f, 0.38f),
-            glm::vec3(0.10f, 0.50f, 1.00f), t);
-
-        // Carrocería
+        // Fallback procedural
         col(sh, carCol);
         mdl(sh, TS({c.x, c.y + 0.46f, c.z + zOff}, {1.35f, 0.58f, 2.5f}));
         mCube.draw();
-
-        // Techo / cabina
         col(sh, carCol * 0.88f);
         mdl(sh, TS({c.x, c.y + 0.98f, c.z + zOff + 0.15f}, {1.05f, 0.42f, 1.4f}));
         mCube.draw();
-
-        // Ruedas (4 discos)
         col(sh, glm::vec3(0.10f, 0.10f, 0.12f));
         float wx[] = {-0.78f,  0.78f, -0.78f,  0.78f};
         float wz[] = {-0.88f, -0.88f,  0.88f,  0.88f};
@@ -414,39 +460,66 @@ private:
             mdl(sh, wm);
             mDisc.draw();
         }
-
-        // Faros: pequeños cubos brillantes al frente
-        glm::vec3 headlightCol = glm::mix(
-            glm::vec3(0.3f, 0.3f, 0.3f),
-            glm::vec3(1.0f, 0.95f, 0.7f), t);
-        col(sh, headlightCol);
-        mdl(sh, TS({c.x - 0.4f, c.y + 0.52f, c.z + zOff + 1.27f}, {0.18f, 0.12f, 0.06f}));
-        mCube.draw();
-        mdl(sh, TS({c.x + 0.4f, c.y + 0.52f, c.z + zOff + 1.27f}, {0.18f, 0.12f, 0.06f}));
-        mCube.draw();
     }
 
-    // ── M3_DER: Árbol que crece desde el suelo ────────────────────────────
-    // animT=0: semilla (apenas visible)
-    // animT=1: árbol frondoso completo
-    void drawTree(Shader& sh, glm::vec3 c, float t) {
-        float s = glm::mix(0.02f, 1.0f, t); // factor de escala global
+    // ── Humo de chimenea: discos horizontales que suben, se expanden y aclaran ──
+    // origin: posición mundial de la boca de la chimenea
+    // phase:  desfase para que las dos chimeneas no estén sincronizadas
+    void drawSmoke(Shader& sh, glm::vec3 origin, float time, float phase) {
+        const int N = 7;
+        for (int i = 0; i < N; i++) {
+            float frac = fmodf(time * 0.35f + phase + (float)i / N, 1.0f); // [0,1] ciclo
+            float yOff = frac * 2.8f;                   // sube 2.8 unidades
+            float r    = 0.07f + frac * 0.50f;          // radio crece de 0.07 a 0.57
+            float g    = glm::mix(0.22f, 0.80f, frac);  // gris oscuro → gris claro
+            col(sh, {g, g, g});
+            glm::mat4 m = glm::scale(T({origin.x, origin.y + yOff, origin.z}),
+                                     {r, 0.09f, r});
+            mdl(sh, m);
+            mDisc.draw();
+        }
+    }
+
+    // ── M3_DER: Fábrica con humo + árbol que crece ────────────────────────
+    // La fábrica y su humo están siempre activos.
+    // El árbol crece de animT=0 (semilla) a animT=1 (árbol completo).
+    //
+    // Chimeneas en espacio modelo → mundo (offset centrado, sc=0.35):
+    //   Chimenea 1  (-0.06, 7.02, -3.51) → c + (-0.87, 2.70, -0.77)
+    //   Chimenea 2  (-2.22, 7.14, -3.55) → c + (-1.62, 2.74, -0.78)
+    void drawTree(Shader& sh, glm::vec3 c, float t, float time) {
+        // Fábrica — siempre visible, centrada en su bounding box.
+        // BB modelo: X[-6.56,11.39] Y[-0.69,7.14] Z[-10.29,7.66]
+        // Offset de centrado: (-2.42, 0.69, 1.31) para poner base en Y=0 y centrar XZ.
+        if (mFactoryModel.loaded) {
+            const float sc = 0.35f;
+            glm::mat4 fm = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z});
+            fm = glm::scale(fm, glm::vec3(sc));
+            fm = glm::translate(fm, {-2.42f, 0.69f, 1.31f});
+            mdl(sh, fm);
+            mFactoryModel.draw(sh); // usa colores del Factory.mtl
+        }
+
+        // Humo de las dos chimeneas (siempre activo)
+        glm::vec3 chimney1 = {c.x - 0.87f, c.y + 2.70f, c.z - 0.77f};
+        glm::vec3 chimney2 = {c.x - 1.62f, c.y + 2.74f, c.z - 0.78f};
+        drawSmoke(sh, chimney1, time, 0.0f);
+        drawSmoke(sh, chimney2, time, 0.45f);
+
+        // Árbol que crece
+        float s = glm::mix(0.02f, 1.0f, t);
 
         if (mPineModel.loaded) {
-            // Pino con nieve Quaternius (textura embebida — se ve bien sin colormap)
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y, c.z});
-            m = glm::scale(m, glm::vec3(s * 2.5f)); // Quaternius ~1-2m nativo
+            m = glm::scale(m, glm::vec3(s * 2.5f));
             mdl(sh, m);
-            mPineModel.draw(sh); // tiene textura embebida
+            mPineModel.draw(sh);
             return;
         }
         // Fallback procedural
-        // Tronco
         col(sh, glm::vec3(0.42f, 0.28f, 0.13f));
         mdl(sh, TS({c.x, c.y + 1.7f * s, c.z}, {0.24f * s, 3.4f * s, 0.24f * s}));
         mCube.draw();
-
-        // Copa: 3 capas de discos (la de abajo es la más ancha)
         float layH[] = {3.6f, 2.7f, 1.9f};
         float layR[] = {1.2f, 1.7f, 2.2f};
         for (int i = 0; i < 3; i++) {

@@ -2,7 +2,7 @@
 
 > Proyecto: Calentamiento global en el polo norte
 > Última actualización: 2026-05-19
-> Estado general: **Fase 13 completa — DecoScene: fauna animada, modelos reales, piso de hielo, terreno exterior nevado**
+> Estado general: **Fase 14 completa — Galería de arte + modelos reales (turbina, Tesla Model S, fábrica con humo)**
 
 ---
 
@@ -68,7 +68,7 @@ El resto de dependencias (GLFW, GLM, Assimp, ImGui) se descargan automáticament
 | M1_IZQ Iceberg | OK | Roca azul que encoge con animT. Escala 5.0 base |
 | M2_IZQ Oso polar | OK | Wolf modelo crema sobre disco de hielo |
 | M3_IZQ Edificios | OK | 3 edificios concreto a escala 1.8. Agua sube con animT |
-| M1_DER Turbina | Funcional | Procedural: poste + góndola + 3 palas rotatorias |
+| M1_DER Turbina | OK | Modelo real EolicOBJ.obj — palas 0-2 giran, estáticos 3-5, suelo omitido |
 | M2_DER Auto | OK | Kenney car azul con movimiento sinusoidal |
 | M3_DER Árbol | OK | Pino nevado que crece de semilla a árbol completo |
 | M5 Globo | OK | DamagedHelmet texturizado, rotación constante |
@@ -185,6 +185,63 @@ Si se necesita agregar más teclas en el futuro, añadirlas al array `KEYS[]` en
 
 ---
 
+## Cambios en Fase 14 (2026-05-19)
+
+### Modelos reales en exhibiciones (`app/src/scene/ModuleScene.h`)
+
+#### M1_DER — Turbina Eólica real (`EolicOBJ.obj`)
+- Submeshes 0-2 = palas (rotan sobre el eje Z alrededor del cubo central)
+- Submeshes 3-5 = torre/góndola/base (estáticos)
+- Centro de rotación calculado a partir del bounding-box del hub: `(0, 27.85, 1.3)` en espacio del modelo
+- Escala 0.28×, desplazada −3.8 u en Y para caber bajo el techo (Y_base ≈ −2.1, Y_top ≈ 5.6)
+- `Model::drawMesh(int index, Shader&, overrideColor*)` añadido a `Model.h` para dibujar submeshes individualmente
+
+#### M2_DER — Tesla Model S (`ModelS.obj`, 183 MB)
+- Meshes 0-3 son planos del suelo del showroom → se omiten para no pintar el piso del museo
+- Rotación sinusoidal sobre Y a 20°/s cuando `animT > 0`
+- Color override: interpolación gris-oscuro → azul eléctrico con `animT`
+
+#### M3_DER — Fábrica con humo (`Factory.obj` + `Factory.mtl`)
+- `Factory.mtl` creado manualmente: verde industrial (`defolt`) y rojo ladrillo (`None`)
+- Partículas de humo procedural: 7 discos por chimenea que suben y se expanden (`drawSmoke()`)
+- Posiciones de chimeneas calculadas desde el bounding-box del OBJ: chimney1=(−0.87, 2.70, −0.77), chimney2=(−1.62, 2.74, −0.78) en espacio del módulo
+
+### Galería de arte — `app/src/scene/GalleryScene.h`
+
+24 pinturas enmarcadas distribuidas en los cuatro muros de los corredores:
+
+| Corredor | Pared | Pinturas | Temática |
+|----------|-------|----------|----------|
+| Izquierdo | Exterior (X=−20) | 01-06 | Consecuencias del calentamiento |
+| Izquierdo | Interior (X=−4.25) | 01-06 | Consecuencias del calentamiento |
+| Derecho | Interior (X=+4.25) | 07-12 | Soluciones y esperanza |
+| Derecho | Exterior (X=+20) | 07-12 | Soluciones y esperanza |
+
+- Lienzo: 1.80 × 1.35 m (relación 4:3), centrado a Y=2.80 m
+- Marco: tiras de 0.08 m en marrón oscuro (4 strips: 2 horizontales + 2 verticales)
+- UV espejado en corredor derecho para evitar texto/imagen invertida
+- `makeWallQuad(w, h, mirrorU)`: quad vertical en plano YZ con normal +X, sin culling
+- Generadas con `scripts/generar_pinturas.py` (Pillow) → `app/assets/textures/gallery/pintura_01..12.png`
+
+#### Pinturas generadas
+
+| # | Archivo | Tema |
+|---|---------|------|
+| 01 | pintura_01.png | Deshielo Ártico — icebergs fracturándose en aguas oscuras |
+| 02 | pintura_02.png | Fauna en Peligro — oso polar en plataforma de hielo menguante |
+| 03 | pintura_03.png | Ciudades Sumergidas — skyline a medio sumergir |
+| 04 | pintura_04.png | Glaciares en Retroceso — split hielo/océano con "+2.7 °C" |
+| 05 | pintura_05.png | Tormenta Climática — huracán espiral con rayos |
+| 06 | pintura_06.png | CO₂ Sin Control — mapa de calor, chimeneas y humo |
+| 07 | pintura_07.png | Energía del Viento — parque eólico con sol |
+| 08 | pintura_08.png | Poder del Sol — sol radiante sobre paneles solares |
+| 09 | pintura_09.png | Movilidad Limpia — auto eléctrico con rayo cyan |
+| 10 | pintura_10.png | Bosques Restaurados — dosel verde con rayos de sol |
+| 11 | pintura_11.png | Acuerdos Globales — globo terráqueo con laureles dorados |
+| 12 | pintura_12.png | Ártico Renacido — aurora boreal sobre montañas nevadas |
+
+---
+
 ## Bugs Visuales Conocidos
 
 ### Críticos (afectan presentación)
@@ -227,5 +284,6 @@ Si se necesita agregar más teclas en el futuro, añadirlas al array `KEYS[]` en
 | 11 | QA rendimiento (165 FPS con VSync off) | Completada |
 | 12 | Colisiones bidireccionales + popup narrativo + audio por módulo | Completada |
 | 13 | DecoScene: fauna animada (lobos + pingüinos), modelos reales, piso hielo, terreno exterior | Completada |
-| Assets | Texturas CC0 + modelos Quaternius/Kenney/KhronosGroup + modelos reales Fase 13 | Completada |
+| 14 | Modelos reales en exhibiciones (turbina EolicOBJ, Tesla Model S, fábrica) + galería de arte 24 pinturas | Completada |
+| Assets | Texturas CC0 + modelos Quaternius/Kenney/KhronosGroup + modelos reales Fase 13-14 | Completada |
 | QA Visual | Verificación escena por escena con screenshots | Completada |

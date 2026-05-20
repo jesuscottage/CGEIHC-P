@@ -13,6 +13,7 @@
 #include "scene/Museum.h"
 #include "scene/ModuleScene.h"
 #include "scene/DecoScene.h"
+#include "scene/GalleryScene.h"
 #include "scene/SnowSystem.h"
 
 #include "imgui.h"
@@ -206,6 +207,9 @@ int main(int argc, char** argv) {
 
     DecoScene decoScene;
     decoScene.init();
+
+    GalleryScene galleryScene;
+    galleryScene.init();
 
     // ── Skybox ártico ─────────────────────────
     Skybox skybox;
@@ -844,6 +848,9 @@ int main(int argc, char** argv) {
             // Decoración procedural low-poly del museo
             decoScene.draw(stdShader, totalTime);
 
+            // Galería de arte — pinturas enmarcadas en los corredores
+            galleryScene.draw(stdShader);
+
             // Letreros 3D de color sobre cada módulo
             museum.drawSigns(stdShader);
 
@@ -923,6 +930,7 @@ int main(int argc, char** argv) {
     museum.free();
     moduleScene.free();
     decoScene.free();
+    galleryScene.free();
     skybox.free();
     waterMesh.free();
     snow.free();

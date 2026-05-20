@@ -87,6 +87,24 @@ public:
         }
     }
 
+    // Dibujar un solo submesh por índice (para animar partes independientes)
+    void drawMesh(int index, Shader& shader, const glm::vec3* overrideColor = nullptr) const {
+        if (index < 0 || index >= (int)meshes.size()) return;
+        const auto& mm = meshes[index];
+        if (overrideColor) {
+            shader.setBool("useTexture", false);
+            shader.setVec3("baseColor", *overrideColor);
+        } else if (mm.hasTexture) {
+            mm.diffuse.bind(0);
+            shader.setInt("diffuseMap", 0);
+            shader.setBool("useTexture", true);
+        } else {
+            shader.setBool("useTexture", false);
+            shader.setVec3("baseColor", mm.baseColor);
+        }
+        mm.mesh.draw();
+    }
+
     void free() {
         for (auto& mm : meshes) {
             mm.mesh.free();

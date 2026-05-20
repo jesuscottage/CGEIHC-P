@@ -1,0 +1,19 @@
+# Factory.mtl — colores ajustados a imagen de referencia
+# defolt  → cuerpo principal de la fábrica (verde industrial)
+# None    → chimeneas y cúpula (rojo ladrillo)
+
+newmtl defolt
+Ka 0.04 0.09 0.03
+Kd 0.20 0.42 0.14
+Ks 0.08 0.08 0.08
+Ns 24.0
+d 1.0
+illum 2
+
+newmtl None
+Ka 0.10 0.03 0.02
+Kd 0.52 0.12 0.10
+Ks 0.12 0.08 0.08
+Ns 24.0
+d 1.0
+illum 2
