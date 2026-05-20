@@ -49,7 +49,7 @@ public:
     void draw(Shader& sh, const std::string& id, const glm::vec3& center,
               float animT, float time)
     {
-        if      (id == "M1_IZQ") drawIceberg    (sh, center, animT);
+        if      (id == "M1_IZQ") drawIceberg    (sh, center, animT, time);
         else if (id == "M2_IZQ") drawIceFloe    (sh, center, animT);
         else if (id == "M3_IZQ") drawFlood      (sh, center, animT);
         else if (id == "M1_DER") drawTurbine    (sh, center, animT, time);
@@ -222,43 +222,88 @@ private:
         return glm::scale(m, s);
     }
 
-    // ── M1_IZQ: Iceberg derritiéndose ──────────────────────────────────────
-    // animT=0: iceberg grande e imponente
-    // animT=1: casi desaparecido
-    void drawIceberg(Shader& sh, glm::vec3 c, float t) {
-        float sx = glm::mix(3.5f, 0.5f, t);
-        float sy = glm::mix(2.8f, 0.2f, t);
+    // ── M1_IZQ: Iceberg vertical low-poly, levitando permanentemente ──────────
+    // El iceberg NUNCA cambia de tamaño ni desaparece.
+    // Levita con un bob sinusoidal y rota despacio siempre.
+    // Cuando se activa la animación (t > 0), caen gotas de él.
+    void drawIceberg(Shader& sh, glm::vec3 c, float t, float time) {
+        glm::vec3 iceCol(0.62f, 0.86f, 1.00f); // azul hielo uniforme
 
-        if (mIcebergModel.loaded) {
-            // Roca con nieve como iceberg — forzar color azul hielo
-            glm::vec3 iceCol = glm::mix(glm::vec3(0.78f, 0.92f, 1.0f), glm::vec3(0.35f, 0.60f, 0.82f), t);
-            float s = glm::mix(5.0f, 0.3f, t); // grande e imponente
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.1f, c.z});
-            m = glm::scale(m, glm::vec3(s * 2.5f, s * 2.0f, s * 2.2f));
+        // Levitación permanente: sube y baja suavemente
+        float bobY = sinf(time * 0.70f) * 0.28f;
+        // Rotación lenta permanente sobre Y
+        float rotY = time * glm::radians(9.0f);
+
+        // Centro del iceberg flotando a 3.8 unidades sobre el suelo
+        glm::vec3 fc = {c.x, c.y + 3.8f + bobY, c.z};
+        glm::mat4 piv = glm::translate(glm::mat4(1.f), fc);
+        piv = glm::rotate(piv, rotY, {0.f, 1.f, 0.f});
+        piv = glm::scale(piv, glm::vec3(0.55f));
+
+        // Forma de gema/escudo alargada verticalmente — centrada en fc
+        // { ox, oy, oz,   sx,   sy,   sz,  sombra }
+        // oy=0 es el centro del iceberg; la forma va de ~-3.0 a ~+2.7
+        struct Sec { float ox, oy, oz, sx, sy, sz, shade; };
+        static const Sec secs[] = {
+            // tapa plana superior
+            { 0.00f,  2.50f,  0.00f,  1.40f, 0.55f, 1.20f, 1.00f },
+            // sección superior (se expande hacia abajo)
+            { 0.06f,  1.65f,  0.04f,  2.20f, 1.35f, 1.90f, 0.95f },
+            // sección media-alta (zona más ancha del iceberg)
+            {-0.05f,  0.55f, -0.05f,  2.80f, 1.60f, 2.40f, 0.90f },
+            // sección media (comienza a taparse)
+            { 0.05f, -0.50f,  0.03f,  2.65f, 1.40f, 2.25f, 0.86f },
+            // sección media-baja
+            {-0.06f, -1.45f, -0.04f,  2.10f, 1.35f, 1.80f, 0.82f },
+            // sección baja (taper pronunciado)
+            { 0.03f, -2.30f,  0.02f,  1.35f, 1.05f, 1.15f, 0.79f },
+            // punta inferior estrecha
+            { 0.00f, -2.95f,  0.00f,  0.55f, 0.75f, 0.48f, 0.76f },
+        };
+
+        for (int i = 0; i < 7; i++) {
+            const Sec& s = secs[i];
+            col(sh, iceCol * s.shade);
+            glm::mat4 m = glm::translate(piv, {s.ox, s.oy, s.oz});
+            m = glm::scale(m, {s.sx, s.sy, s.sz});
             mdl(sh, m);
-            mIcebergModel.draw(sh, &iceCol);
-            return;
+            mCube.draw();
         }
-        glm::vec3 iceCol = glm::mix(
-            glm::vec3(0.78f, 0.92f, 1.00f),
-            glm::vec3(0.35f, 0.60f, 0.82f), t);
 
-        // Bloque principal del iceberg
-        col(sh, iceCol);
-        mdl(sh, TS({c.x, c.y + sy * 0.5f, c.z}, {sx, sy, sx * 0.85f}));
-        mCube.draw();
+        // Gotas solo cuando la animación está activa
+        if (t > 0.02f)
+            drawMeltDrops(sh, fc, c.y, time, 1.4f * 0.55f, rotY);
+    }
 
-        // Arista secundaria (más ancha y baja, parcialmente sumergida)
-        col(sh, iceCol * 0.78f);
-        mdl(sh, TS({c.x + 0.4f, c.y + 0.06f, c.z - 0.2f}, {sx * 1.6f, 0.13f, sx * 1.6f}));
-        mCube.draw();
+    // Gotas que caen del iceberg flotante hasta el suelo cuando la animación está activa
+    void drawMeltDrops(Shader& sh, glm::vec3 iceCenter, float floorY,
+                       float time, float radius, float rotY) {
+        const int N = 14;
+        glm::vec3 dropCol(0.50f, 0.84f, 1.0f);
 
-        // Trozo lateral flotante (aparece sólo antes de la mitad)
-        if (t < 0.55f) {
-            float lt = 1.0f - t / 0.55f;
-            col(sh, iceCol * lt);
-            mdl(sh, TS({c.x + sx * 0.9f, c.y + 0.3f * lt, c.z + 0.5f},
-                        {sx * 0.4f * lt, 0.6f * lt, sx * 0.4f * lt}));
+        for (int i = 0; i < N; i++) {
+            float phase = (float)i / N;
+            float ang   = phase * glm::two_pi<float>() + rotY;
+
+            // Velocidades distintas para asincronía visual
+            float speed = 0.50f + phase * 0.40f;
+            float dropT = fmodf(time * speed + phase, 1.0f); // ciclo [0,1]
+
+            // La gota sale de la parte inferior del iceberg y cae hasta el suelo
+            float startY = iceCenter.y - 1.8f;
+            float yDrop  = glm::mix(startY, floorY + 0.06f, dropT);
+
+            // Radio de salida: varía por gota para distribución natural
+            float r  = radius * (0.50f + 0.40f * sinf(phase * 4.9f + 1.0f));
+            float dx = cosf(ang) * r;
+            float dz = sinf(ang) * r;
+
+            // Teardrop: elongado en Y, se achica cerca del suelo
+            float ds = 0.065f * (1.0f - dropT * 0.45f);
+
+            col(sh, dropCol);
+            mdl(sh, TS({iceCenter.x + dx, yDrop, iceCenter.z + dz},
+                       {ds, ds * 2.6f, ds}));
             mCube.draw();
         }
     }
