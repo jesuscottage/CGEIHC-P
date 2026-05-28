@@ -66,7 +66,7 @@ public:
             char path[256];
             std::snprintf(path, sizeof(path),
                           ASSETS_DIR "textures/gallery/pintura_%02d.png", i + 1);
-            mTex[i].load(path, false);
+            mTex[i].load(path, true);
         }
     }
 

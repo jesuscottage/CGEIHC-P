@@ -510,7 +510,7 @@ private:
         // Estalactitas de hielo del techo (pirÃ¡mide invertida)
         auto estalactita = [&](float x, float z) {
             col(sh, cHielo());
-            mdl(sh, TRS({x, 4.8f, z}, 180.f, {1.f, 0.f, 0.f}, {0.40f, 1.20f, 0.40f}));
+            mdl(sh, TRS({x, 6.0f, z}, 180.f, {1.f, 0.f, 0.f}, {0.40f, 1.20f, 0.40f}));
             mPyram.draw();
         };
         estalactita(-18.0f, 15.0f);

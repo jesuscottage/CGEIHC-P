@@ -244,6 +244,7 @@ int main(int argc, char** argv) {
     float  currentFPS    = 60.0f;
     double cierreTimer   = 0.0;   // momento en que se entró al estado CIERRE
     int    modulesCompleted = 0;  // cuántos módulos han llegado a animT=1.0
+    float  completionTimer = 0.0f; // tiempo transcurrido después de que una animación llega a 1.0
 
     // Multi-ángulo: frente, suelo, techo, animación media, animación final
     const int   CAPTURE_FRAMES[] = {60, 90, 120, 300, 600};
@@ -477,6 +478,19 @@ int main(int argc, char** argv) {
                 if (activeModulePtr) {
                     activeModuleName = activeModulePtr->id;
                     activeModuleT    = activeModulePtr->animT;
+                    // Resetear animación 2s después de completarse
+                    if (activeModulePtr->animT >= 1.0f) {
+                        completionTimer += dt;
+                        if (completionTimer >= 2.0f) {
+                            activeModulePtr->reset();
+                            activeModulePtr  = nullptr;
+                            activeModuleName = "ninguno";
+                            activeModuleT    = 0.0f;
+                            completionTimer  = 0.0f;
+                        }
+                    } else {
+                        completionTimer = 0.0f;
+                    }
                 }
 
                 if (glfwGetKey(window.handle, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -833,6 +847,22 @@ int main(int argc, char** argv) {
             stdShader.setVec3("fresnel0",    glm::vec3(0.06f, 0.07f, 0.09f));
             stdShader.setVec3("fogColor",    FOG_COLOR);
 
+            // Point lights — exhibiciones (blanco cálido sutil, Y=5m) + vestíbulo
+            int nLights = (int)museum.modules.size();
+            for (int i = 0; i < nLights; i++) {
+                const auto& mod = museum.modules[i];
+                std::string idx = std::to_string(i);
+                stdShader.setVec3("pointLightPos[" + idx + "]",
+                    glm::vec3(mod.center.x, 5.0f, mod.center.z));
+                stdShader.setVec3("pointLightColor[" + idx + "]",
+                    glm::vec3(0.95f, 0.85f, 0.65f) * 0.45f); // blanco cálido sutil
+            }
+            // Luz adicional en el vestíbulo (spawn del jugador)
+            std::string vi = std::to_string(nLights);
+            stdShader.setVec3("pointLightPos[" + vi + "]", glm::vec3(0.0f, 5.0f, 2.0f));
+            stdShader.setVec3("pointLightColor[" + vi + "]", glm::vec3(0.95f, 0.85f, 0.65f) * 0.45f);
+            stdShader.setInt("numPointLights", nLights + 1);
+
             // Render del museo (suelo, techo, paredes, plataformas)
             museum.draw(stdShader, camera.position);
 
@@ -851,8 +881,10 @@ int main(int argc, char** argv) {
             // Galería de arte — pinturas enmarcadas en los corredores
             galleryScene.draw(stdShader);
 
-            // Letreros 3D de color sobre cada módulo
+            // Letreros 3D de color sobre cada módulo (sin culling para visibilidad total)
+            glDisable(GL_CULL_FACE);
             museum.drawSigns(stdShader);
+            glEnable(GL_CULL_FACE);
 
             // ── Agua ártica (semitransparente — blend antes del skybox) ──────
             glEnable(GL_BLEND);

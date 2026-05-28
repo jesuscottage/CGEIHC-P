@@ -179,7 +179,7 @@ public:
             float signY = 4.2f;    // altura — debajo del techo (6m), discreto
 
             shader.setBool("useTexture", false);
-            shader.setVec3("baseColor", mod.labelColor);
+            shader.setVec3("baseColor", glm::vec3(0.55f, 0.15f, 0.75f)); // morado para todos
 
             // Panel 1: orientado en Z
             auto m1 = glm::scale(glm::translate(glm::mat4(1.f),
@@ -277,15 +277,13 @@ private:
         // ── Corredor izquierdo ─────────────────────────────
         // Pared exterior izq (X=-20)
         addWall({-20.25f, 3, 35}, {0.5f, 6, 70}, wallColor);
-        // Pared interior izq (X=-4)  — empieza en Z=10 (fin del vestíbulo)
-        addWall({-4.25f, 3, 40}, {0.5f, 6, 60}, {wallColor.r*0.85f, wallColor.g*0.85f, wallColor.b*0.85f});
-        // Pared trasera corredor izq (Z=65 lado izq)
-        addWall({-12, 3, 65.25f}, {16, 6, 0.5f}, wallColor);
+        // Pared interior izq (X=-4)  — de Z=10 a Z=60 (abre a M5)
+        addWall({-4.25f, 3, 35}, {0.5f, 6, 50}, {wallColor.r*0.85f, wallColor.g*0.85f, wallColor.b*0.85f});
 
         // ── Corredor derecho ───────────────────────────────
         addWall({ 20.25f, 3, 35}, {0.5f, 6, 70}, wallColor);
-        addWall({  4.25f, 3, 40}, {0.5f, 6, 60}, {wallColor.r*0.85f, wallColor.g*0.85f, wallColor.b*0.85f});
-        addWall({ 12, 3, 65.25f}, {16, 6, 0.5f}, wallColor);
+        // Pared interior der (X=+4) — de Z=10 a Z=60 (abre a M5)
+        addWall({  4.25f, 3, 35}, {0.5f, 6, 50}, {wallColor.r*0.85f, wallColor.g*0.85f, wallColor.b*0.85f});
 
         // ── Sala M5 ────────────────────────────────────────
         // Pared trasera (Z=75)

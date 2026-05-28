@@ -192,3 +192,32 @@ inline Mesh makeCube() {
     }
     Mesh m; m.setup(verts, idx); return m;
 }
+
+// Esfera UV centrada en el origen, radio 0.5
+inline Mesh makeSphere(int stacks = 24, int slices = 32) {
+    const float PI = glm::pi<float>();
+    std::vector<Vertex> verts;
+    std::vector<unsigned int> idx;
+    for (int i = 0; i <= stacks; i++) {
+        float phi = PI * (float)i / stacks;
+        float y   = 0.5f * cosf(phi);
+        float r   = 0.5f * sinf(phi);
+        float v   = (float)i / stacks;
+        for (int j = 0; j <= slices; j++) {
+            float theta = 2.0f * PI * (float)j / slices;
+            float x = r * cosf(theta);
+            float z = r * sinf(theta);
+            float u = (float)j / slices;
+            glm::vec3 n = glm::normalize(glm::vec3(x, y, z));
+            verts.push_back({{x, y, z}, n, {u, v}});
+        }
+    }
+    for (int i = 0; i < stacks; i++) {
+        for (int j = 0; j < slices; j++) {
+            unsigned int a = i * (slices + 1) + j;
+            unsigned int b = a + (slices + 1);
+            idx.insert(idx.end(), {a, b, a + 1, a + 1, b, b + 1});
+        }
+    }
+    Mesh m; m.setup(verts, idx); return m;
+}

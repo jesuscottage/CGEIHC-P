@@ -19,8 +19,9 @@
 class ModuleScene {
 public:
     void init() {
-        mCube = makeCube();
-        mDisc = makeDisc(1.0f, 24, 0.08f);
+        mCube   = makeCube();
+        mDisc   = makeDisc(1.0f, 24, 0.08f);
+        mSphere = makeSphere(24, 32);
         // Modelos de módulos
         mPineModel.load(ASSETS_DIR "models/pine_snow.glb");  // Quaternius CC0 (textura embebida)
         mCarModel.load(ASSETS_DIR "models/electric_car.glb");
@@ -59,7 +60,7 @@ public:
     }
 
     void free() {
-        mCube.free(); mDisc.free();
+        mCube.free(); mDisc.free(); mSphere.free();
         mPineModel.free(); mCarModel.free();
         mBuildingA.free(); mBuildingB.free(); mBuildingC.free();
         mGlobeModel.free(); mIcebergModel.free(); mRockModel.free();
@@ -135,7 +136,7 @@ public:
     }
 
 private:
-    Mesh mCube, mDisc;
+    Mesh mCube, mDisc, mSphere;
     Model mPineModel, mCarModel, mBuildingA, mBuildingB, mBuildingC, mGlobeModel;
     Model mIcebergModel, mRockModel, mBearModel, mFoxModel, mBirdModel, mSealModel, mWhaleModel;
     Model mEolicModel;
@@ -224,42 +225,52 @@ private:
 
     // ── M1_IZQ: Iceberg derritiéndose ──────────────────────────────────────
     // animT=0: iceberg grande e imponente
-    // animT=1: casi desaparecido
+    // animT=1: casi desaparecido, charco de agua crece
     void drawIceberg(Shader& sh, glm::vec3 c, float t) {
         float sx = glm::mix(3.5f, 0.5f, t);
         float sy = glm::mix(2.8f, 0.2f, t);
 
         if (mIcebergModel.loaded) {
-            // Roca con nieve como iceberg — forzar color azul hielo
             glm::vec3 iceCol = glm::mix(glm::vec3(0.78f, 0.92f, 1.0f), glm::vec3(0.35f, 0.60f, 0.82f), t);
-            float s = glm::mix(5.0f, 0.3f, t); // grande e imponente
+            float s = glm::mix(1.8f, 0.15f, t); // escala reducida para que sea visible
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.1f, c.z});
             m = glm::scale(m, glm::vec3(s * 2.5f, s * 2.0f, s * 2.2f));
             mdl(sh, m);
             mIcebergModel.draw(sh, &iceCol);
-            return;
-        }
-        glm::vec3 iceCol = glm::mix(
-            glm::vec3(0.78f, 0.92f, 1.00f),
-            glm::vec3(0.35f, 0.60f, 0.82f), t);
+        } else {
+            glm::vec3 iceCol = glm::mix(
+                glm::vec3(0.78f, 0.92f, 1.00f),
+                glm::vec3(0.35f, 0.60f, 0.82f), t);
 
-        // Bloque principal del iceberg
-        col(sh, iceCol);
-        mdl(sh, TS({c.x, c.y + sy * 0.5f, c.z}, {sx, sy, sx * 0.85f}));
-        mCube.draw();
-
-        // Arista secundaria (más ancha y baja, parcialmente sumergida)
-        col(sh, iceCol * 0.78f);
-        mdl(sh, TS({c.x + 0.4f, c.y + 0.06f, c.z - 0.2f}, {sx * 1.6f, 0.13f, sx * 1.6f}));
-        mCube.draw();
-
-        // Trozo lateral flotante (aparece sólo antes de la mitad)
-        if (t < 0.55f) {
-            float lt = 1.0f - t / 0.55f;
-            col(sh, iceCol * lt);
-            mdl(sh, TS({c.x + sx * 0.9f, c.y + 0.3f * lt, c.z + 0.5f},
-                        {sx * 0.4f * lt, 0.6f * lt, sx * 0.4f * lt}));
+            // Bloque principal del iceberg
+            col(sh, iceCol);
+            mdl(sh, TS({c.x, c.y + sy * 0.5f, c.z}, {sx, sy, sx * 0.85f}));
             mCube.draw();
+
+            // Arista secundaria
+            col(sh, iceCol * 0.78f);
+            mdl(sh, TS({c.x + 0.4f, c.y + 0.06f, c.z - 0.2f}, {sx * 1.6f, 0.13f, sx * 1.6f}));
+            mCube.draw();
+
+            // Trozo lateral flotante (desaparece a la mitad)
+            if (t < 0.55f) {
+                float lt = 1.0f - t / 0.55f;
+                col(sh, iceCol * lt);
+                mdl(sh, TS({c.x + sx * 0.9f, c.y + 0.3f * lt, c.z + 0.5f},
+                            {sx * 0.4f * lt, 0.6f * lt, sx * 0.4f * lt}));
+                mCube.draw();
+            }
+        }
+
+        // Charco de agua que crece al derretirse el hielo
+        if (t > 0.05f) {
+            float poolR = glm::mix(0.5f, 6.0f, t);   // radio crece
+            float poolH = glm::mix(0.02f, 0.20f, t);  // altura sube
+            glDisable(GL_CULL_FACE);
+            col(sh, glm::vec3(0.10f, 0.35f, 0.75f));
+            mdl(sh, TS({c.x, c.y + poolH * 0.5f, c.z}, {poolR, poolH, poolR}));
+            mCube.draw();
+            glEnable(GL_CULL_FACE);
         }
     }
 
@@ -279,7 +290,8 @@ private:
         if (mBearModel.loaded) {
             glm::vec3 cream(0.92f, 0.90f, 0.85f); // crema cálido, distinto del hielo azulado
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x + 1.0f, c.y + 0.15f, c.z});
-            m = glm::scale(m, glm::vec3(35.0f)); // más grande para visibilidad
+            m = glm::rotate(m, glm::radians(-90.f), {1.f, 0.f, 0.f}); // corregir orientación (cabeza arriba)
+            m = glm::scale(m, glm::vec3(35.0f));
             mdl(sh, m);
             mBearModel.draw(sh, &cream);
         } else {
@@ -332,11 +344,13 @@ private:
             }
         }
 
-        // Plano de agua (siempre procedural)
+        // Plano de agua (siempre procedural, sin culling para visibilidad total)
         if (waterY > -0.5f) {
+            glDisable(GL_CULL_FACE);
             col(sh, glm::vec3(0.14f, 0.38f, 0.80f));
-            mdl(sh, TS({c.x, c.y + waterY, c.z}, {7.0f, 0.16f, 7.0f}));
+            mdl(sh, TS({c.x, c.y + waterY, c.z}, {12.0f, 0.16f, 12.0f}));
             mCube.draw();
+            glEnable(GL_CULL_FACE);
         }
     }
 
@@ -361,9 +375,8 @@ private:
             float speed = glm::mix(0.0f, 2.5f, t);           // rad/s (0 → ~24 RPM)
             float angle = speed * time;                       // radianes acumulados
 
-            // Bajar la turbina para que no sobresalga del techo (Y=6.0).
-            // Con c.y=1.7 y sc=0.28 la cima queda en ~9.4 → se baja 3.8u (base a ~-2.1).
-            glm::vec3 c2 = {c.x, c.y - 3.8f, c.z};
+            // Bajar la turbina para que no sobresalga del techo ni traslape con el letrero (Y=4.2).
+            glm::vec3 c2 = {c.x, c.y - 5.5f, c.z};
 
             // Partes estáticas: góndola(3), cono(4), torre(5)
             glm::mat4 mSt = glm::scale(glm::translate(glm::mat4(1.f), c2), glm::vec3(sc));
@@ -435,7 +448,6 @@ private:
         float zOff = sinf(time * glm::pi<float>() / 3.0f) * 2.4f * t;
         if (mCarModel.loaded) {
             glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.05f, c.z + zOff});
-            m = glm::rotate(m, glm::radians(90.f), {0.f, 1.f, 0.f});
             m = glm::scale(m, glm::vec3(0.8f));
             mdl(sh, m);
             mCarModel.draw(sh, &carCol);
@@ -500,11 +512,13 @@ private:
             mFactoryModel.draw(sh); // usa colores del Factory.mtl
         }
 
-        // Humo de las dos chimeneas (siempre activo)
-        glm::vec3 chimney1 = {c.x - 0.87f, c.y + 2.70f, c.z - 0.77f};
-        glm::vec3 chimney2 = {c.x - 1.62f, c.y + 2.74f, c.z - 0.78f};
-        drawSmoke(sh, chimney1, time, 0.0f);
-        drawSmoke(sh, chimney2, time, 0.45f);
+        // Humo de las dos chimeneas (solo cuando la animación está activa)
+        if (t > 0.0f) {
+            glm::vec3 chimney1 = {c.x - 0.87f, c.y + 2.70f, c.z - 0.77f};
+            glm::vec3 chimney2 = {c.x - 1.62f, c.y + 2.74f, c.z - 0.78f};
+            drawSmoke(sh, chimney1, time, 0.0f);
+            drawSmoke(sh, chimney2, time, 0.45f);
+        }
 
         // Árbol que crece
         float s = glm::mix(0.02f, 1.0f, t);
@@ -532,34 +546,62 @@ private:
         }
     }
 
-    // ── M5: Globo terráqueo girando + líneas de acuerdos ──────────────────
-    // Rotación siempre activa; líneas aparecen secuencialmente con animT
+    // ── M5: Globo terráqueo (esfera procedural) ───────────────────────────
+    // animT=0: esfera pequeña, sin rotación
+    // animT=1: esfera a tamaño completo, rotando a velocidad media
     void drawGlobe(Shader& sh, glm::vec3 c, float t, float time) {
-        float rot = time * 18.0f; // 18°/s constante
+        // Escala: crece de 0.3 a 2.8 según animT
+        float sc  = glm::mix(0.3f, 2.8f, t);
+        // Rotación: solo cuando t > 0, velocidad crece con t
+        float rot = t * time * 30.0f; // 30°/s a t=1
 
-        if (mGlobeModel.loaded) {
-            // DamagedHelmet como símbolo del planeta dañado
-            glm::mat4 gm = glm::translate(glm::mat4(1.f), {c.x, c.y + 2.5f, c.z});
-            gm = glm::rotate(gm, glm::radians(rot), {0.f, 1.f, 0.f});
-            gm = glm::scale(gm, glm::vec3(1.0f)); // más modesto para no abrumar
-            mdl(sh, gm);
-            mGlobeModel.draw(sh);
-        } else {
-            // Fallback: cubos como globo
-            col(sh, glm::vec3(0.18f, 0.48f, 0.82f));
-            glm::mat4 gm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
-                                        glm::radians(rot), {0.f, 1.f, 0.f});
-            gm = glm::scale(gm, {2.6f, 2.6f, 2.6f});
-            mdl(sh, gm);
-            mCube.draw();
+        // Océano (esfera azul)
+        col(sh, glm::vec3(0.12f, 0.42f, 0.85f));
+        glm::mat4 gm = glm::translate(glm::mat4(1.f), {c.x, c.y + 3.0f, c.z});
+        gm = glm::rotate(gm, glm::radians(rot), {0.f, 1.f, 0.f});
+        // Inclinación axial de 23.4° como la Tierra
+        gm = glm::rotate(gm, glm::radians(23.4f), {0.f, 0.f, 1.f});
+        gm = glm::scale(gm, glm::vec3(sc));
+        mdl(sh, gm);
+        mSphere.draw();
 
-            col(sh, glm::vec3(0.25f, 0.60f, 0.26f));
-            glm::mat4 cm = glm::rotate(T({c.x, c.y + 3.2f, c.z}),
-                                        glm::radians(rot + 55.f), {0.f, 1.f, 0.f});
-            cm = glm::scale(cm, {2.66f, 1.2f, 1.5f});
+        // Continentes (esferas ligeramente más grandes, verdes, desplazadas)
+        float cs = sc * 1.005f; // apenas sobre la superficie
+        glm::vec3 green(0.22f, 0.58f, 0.18f);
+        // Simular masas de tierra con esferas aplanadas en distintas posiciones
+        struct Continent { float lat, lon, sx, sy, sz; };
+        Continent conts[] = {
+            { 40.f,  -20.f, 0.45f, 0.35f, 0.30f}, // Europa/África
+            { 30.f,   80.f, 0.50f, 0.40f, 0.35f}, // Asia
+            { 35.f, -100.f, 0.40f, 0.30f, 0.25f}, // América del Norte
+            {-15.f,  -60.f, 0.25f, 0.35f, 0.20f}, // Sudamérica
+            {-25.f,  130.f, 0.30f, 0.20f, 0.25f}, // Australia
+        };
+        col(sh, green);
+        for (auto& ct : conts) {
+            float latr = glm::radians(ct.lat);
+            float lonr = glm::radians(ct.lon);
+            float cx = 0.5f * cosf(latr) * cosf(lonr);
+            float cy = 0.5f * sinf(latr);
+            float cz = 0.5f * cosf(latr) * sinf(lonr);
+            glm::mat4 cm = glm::translate(gm, {cx, cy, cz});
+            cm = glm::scale(cm, {ct.sx, ct.sy, ct.sz});
             mdl(sh, cm);
-            mCube.draw();
+            mSphere.draw();
         }
+
+        // Casquetes polares (blanco)
+        col(sh, glm::vec3(0.92f, 0.95f, 1.0f));
+        // Polo norte
+        glm::mat4 pn = glm::translate(gm, {0.f, 0.48f, 0.f});
+        pn = glm::scale(pn, {0.25f, 0.08f, 0.25f});
+        mdl(sh, pn);
+        mSphere.draw();
+        // Polo sur
+        glm::mat4 ps = glm::translate(gm, {0.f, -0.48f, 0.f});
+        ps = glm::scale(ps, {0.30f, 0.08f, 0.30f});
+        mdl(sh, ps);
+        mSphere.draw();
 
         // Líneas de acuerdos: discos que aparecen uno a uno con animT
         if (t > 0.05f) {
