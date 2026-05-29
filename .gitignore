@@ -63,3 +63,7 @@ setup/instaladores/*.msi
 # Modelos 3D de árboles demasiado pesados para git (>30 MB)
 app/assets/models/tree_real.obj
 app/assets/models/trees9.obj
+# Entregables finales (no versionados)
+entregables/*.exe
+entregables/*.pdf
+build-portable/

@@ -24,6 +24,7 @@
 | T-004 | `../../INFRAESTRUCTURA.md` | Infraestructura y Stack Técnico | 2026-05-15 | Stack completo: OpenGL/GLAD/GLFW/GLM/Assimp/ImGui/OpenAL, pipeline de assets, herramientas de desarrollo autónomo con Claude Code, arquitectura del motor, optimizaciones |
 | T-005 | `technology/fuentes-datos-museo.md` | Investigación de Fuentes — Datos Científicos del Museo | 2026-05-15 | Hallazgos y correcciones de investigación web: hielo marino (NSIDC/PIOMAS), osos polares (IUCN), nivel del mar (USGS/NOAA/IPCC), renovables (IEA), transporte (IEA), sumideros (GCP), acuerdos (UNEP). URLs de referencia rápida. |
 | T-006 | `technology/proyectos-referencia.md` | Proyectos de Referencia — Base de Código OpenGL C++ | 2026-05-16 | Catálogo de proyectos y fragmentos de código verificados por categoría: iluminación, agua, skybox, partículas, animaciones LERP, Assimp, ImGui, stb_truetype, miniaudio, museo FPS. Se llena en Fase 0B y se enriquece durante el desarrollo. |
+| T-007 | `technology/auditoria-requisitos.md` | Auditoría de Cumplimiento de Requisitos | 2026-05-28 | Evaluación exhaustiva ámbito por ámbito: iluminación (5 técnicas), env mapping (2), animaciones (3 tipos), recorrido narrativo, interacciones, texturas, audio, UI, FPS. Calificación estimada: 92-95%. Pendientes: instalador, video, presentación oral. |
 
 ---
 

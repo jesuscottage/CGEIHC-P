@@ -69,11 +69,14 @@ target_include_directories(CGEIHC PRIVATE
     ${imgui_SOURCE_DIR}/backends
 )
 
-target_compile_definitions(CGEIHC PRIVATE
-    ACTIVE_DIR="${REPO_ROOT}/active/"
-    SHADERS_DIR="${CMAKE_SOURCE_DIR}/shaders/"
-    ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets/"
-)
+option(PORTABLE "Build portable exe with relative paths" OFF)
+if(NOT PORTABLE)
+    target_compile_definitions(CGEIHC PRIVATE
+        ACTIVE_DIR="${REPO_ROOT}/active/"
+        SHADERS_DIR="${CMAKE_SOURCE_DIR}/shaders/"
+        ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets/"
+    )
+endif()
 
 target_link_libraries(CGEIHC PRIVATE glfw glm::glm assimp)
 

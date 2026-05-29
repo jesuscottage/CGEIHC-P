@@ -227,32 +227,23 @@ private:
     // animT=0: iceberg grande e imponente
     // animT=1: casi desaparecido, charco de agua crece
     void drawIceberg(Shader& sh, glm::vec3 c, float t) {
-        float sx = glm::mix(3.5f, 0.5f, t);
-        float sy = glm::mix(2.8f, 0.2f, t);
+        float sx = glm::mix(2.0f, 0.3f, t);
+        float sy = glm::mix(2.2f, 0.15f, t);
 
-        if (mIcebergModel.loaded) {
-            glm::vec3 iceCol = glm::mix(glm::vec3(0.78f, 0.92f, 1.0f), glm::vec3(0.35f, 0.60f, 0.82f), t);
-            float s = glm::mix(1.8f, 0.15f, t); // escala reducida para que sea visible
-            glm::mat4 m = glm::translate(glm::mat4(1.f), {c.x, c.y + 0.1f, c.z});
-            m = glm::scale(m, glm::vec3(s * 2.5f, s * 2.0f, s * 2.2f));
-            mdl(sh, m);
-            mIcebergModel.draw(sh, &iceCol);
-        } else {
-            glm::vec3 iceCol = glm::mix(
-                glm::vec3(0.78f, 0.92f, 1.00f),
-                glm::vec3(0.35f, 0.60f, 0.82f), t);
-
-            // Bloque principal del iceberg
+        {
+            // Iceberg procedural: cubo azul hielo que encoge con la animación
+            glDisable(GL_CULL_FACE);
+            glm::vec3 iceCol = glm::mix(glm::vec3(0.45f, 0.72f, 0.92f), glm::vec3(0.20f, 0.40f, 0.70f), t);
             col(sh, iceCol);
             mdl(sh, TS({c.x, c.y + sy * 0.5f, c.z}, {sx, sy, sx * 0.85f}));
             mCube.draw();
 
-            // Arista secundaria
+            // Arista secundaria más oscura
             col(sh, iceCol * 0.78f);
             mdl(sh, TS({c.x + 0.4f, c.y + 0.06f, c.z - 0.2f}, {sx * 1.6f, 0.13f, sx * 1.6f}));
             mCube.draw();
 
-            // Trozo lateral flotante (desaparece a la mitad)
+            // Trozo lateral (desaparece a la mitad de la animación)
             if (t < 0.55f) {
                 float lt = 1.0f - t / 0.55f;
                 col(sh, iceCol * lt);
@@ -260,6 +251,7 @@ private:
                             {sx * 0.4f * lt, 0.6f * lt, sx * 0.4f * lt}));
                 mCube.draw();
             }
+            glEnable(GL_CULL_FACE);
         }
 
         // Charco de agua que crece al derretirse el hielo
